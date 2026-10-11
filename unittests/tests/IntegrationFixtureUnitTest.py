@@ -101,6 +101,64 @@ class IntegrationFixtureUnitTest(unittest.TestCase):
         self.assertEqual(PortConflictSocket.udp_binds, [40012, 40022, 40024])
         self.assertTrue(all(sock.closed for sock in PortConflictSocket.sockets))
 
+    def test_startup_retry_after_late_udp_collision(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            attempts = []
+
+            def start():
+                attempts.append(len(attempts))
+                log = ('*** TCP socket (ECServer) listening on 127.0.0.1:40000\n'
+                       'ListenSocket: Ok.\n')
+                if len(attempts) == 2:
+                    log += 'Created Client UDP-Socket at port 40002\n'
+                (root / 'logfile').write_text(log)
+                AllSearchIntegrationTest.check_daemon_ports(root, 40000, 40001, 40002)
+
+            AllSearchIntegrationTest.retry_port_collisions(start)
+            self.assertEqual(len(attempts), 2)
+
+    def test_unrelated_error_is_not_retried(self):
+        attempts = []
+
+        def start():
+            attempts.append(None)
+            raise ValueError('unrelated startup failure')
+
+        with self.assertRaisesRegex(ValueError, 'unrelated startup failure'):
+            AllSearchIntegrationTest.retry_port_collisions(start)
+        self.assertEqual(len(attempts), 1)
+
+    def test_ec_does_not_connect_to_a_stolen_port(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / 'logfile').write_text(
+                'Could not listen for external connections at 127.0.0.1:40000!\n')
+            proc = type('RunningDaemon', (), {'poll': lambda self: None})()
+            with patch.object(AllSearchIntegrationTest, 'EC') as ec:
+                with self.assertRaises(AllSearchIntegrationTest.PortCollision):
+                    AllSearchIntegrationTest.connect_daemon(proc, 40000, root, 40001)
+                ec.assert_not_called()
+
+    def test_startup_log_ignores_previous_launch(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / 'logfile'
+            log.write_text('previous success\n')
+            snapshot = AllSearchIntegrationTest.log_snapshot(log)
+            self.assertEqual(AllSearchIntegrationTest.new_log_text(log, snapshot), '')
+            with log.open('a') as stream:
+                stream.write('current failure\n')
+            self.assertEqual(AllSearchIntegrationTest.new_log_text(log, snapshot),
+                             'current failure\n')
+            log.write_text('truncated and regrown with different startup lines\n')
+            self.assertEqual(AllSearchIntegrationTest.new_log_text(log, snapshot),
+                             'truncated and regrown with different startup lines\n')
+            replacement = Path(temporary) / 'replacement'
+            replacement.write_text('new file success\n')
+            replacement.replace(log)
+            self.assertEqual(AllSearchIntegrationTest.new_log_text(log, snapshot),
+                             'new file success\n')
+
     def test_invalid_console_bytes_preserve_startup_failure(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / 'fixture'

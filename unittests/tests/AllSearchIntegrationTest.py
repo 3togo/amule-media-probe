@@ -109,16 +109,85 @@ class EC:
         return self.call(C['EC_OP_SEARCH_PROGRESS'], [integer(C['EC_TAG_SEARCH_ID'], sid)])[1]
 
 
-def connect_daemon(proc, port):
+class PortCollision(RuntimeError):
+    """A fixture endpoint was taken between port selection and startup."""
+
+
+def retry_port_collisions(run, *args):
+    for attempt in range(3):
+        try:
+            return run(*args)
+        except PortCollision:
+            if attempt == 2:
+                raise
+            print(f'Fixture port collision; retrying with new ports ({attempt + 1}/2)',
+                  file=sys.stderr)
+
+
+def log_snapshot(path):
+    try:
+        stat = Path(path).stat()
+    except FileNotFoundError:
+        return None
+    with Path(path).open('rb') as log:
+        log.seek(max(0, stat.st_size - 128))
+        tail = log.read()
+    return stat.st_dev, stat.st_ino, stat.st_size, tail
+
+
+def new_log_text(path, snapshot):
+    path = Path(path)
+    try:
+        current = path.stat()
+    except FileNotFoundError:
+        return ''
+    with path.open('rb') as log:
+        offset = 0
+        same_file = snapshot and (current.st_dev, current.st_ino) == snapshot[:2]
+        if same_file and current.st_size >= snapshot[2]:
+            log.seek(snapshot[2] - len(snapshot[3]))
+            if log.read(len(snapshot[3])) == snapshot[3]:
+                offset = snapshot[2]
+        log.seek(offset)
+        return log.read().decode(errors='replace')
+
+
+def check_daemon_ports(root, ec_port, peer_port, udp_port=None, server_udp=False,
+                       log_text=None):
+    log = (log_text if log_text is not None else
+           (Path(root) / 'logfile').read_text(errors='replace'))
+    required = [f'ECServer) listening on 127.0.0.1:{ec_port}', 'ListenSocket: Ok.']
+    if udp_port is not None:
+        required.append(f'Created Client UDP-Socket at port {udp_port}')
+    if server_udp:
+        required.append(f'Created Server UDP-Socket at port {peer_port + 3}')
+    missing = [line for line in required if line not in log]
+    if missing:
+        raise PortCollision(f'Daemon did not bind fixture ports: {missing}\n{log[-4000:]}')
+
+
+def connect_daemon(proc, port, root=None, peer_port=None, udp_port=None,
+                   server_udp=False, snapshot=None):
     # The caller/ctest may impose its own deadline. Slow architectures can spend
     # minutes hashing passwords before opening EC; wait while the daemon lives.
     while True:
         if proc.poll() is not None:
             raise RuntimeError('daemon exited')
+        if root is not None:
+            startup = new_log_text(Path(root) / 'logfile', snapshot)
+            if 'Could not listen for external connections at ' in startup:
+                raise PortCollision(f'Daemon could not bind EC port {port}')
+            if 'amuled: OnInit - starting timer' not in startup:
+                time.sleep(0.1)
+                continue
+            check_daemon_ports(root, port, peer_port, udp_port, server_udp,
+                               log_text=startup)
         try:
-            return EC(port)
+            ec = EC(port)
         except ConnectionRefusedError:
             time.sleep(0.1)
+        else:
+            return ec
 
 
 def search_record(name, sources=10):
@@ -214,11 +283,14 @@ ECPassword={hashlib.md5(b'regression').hexdigest()}
 '''
         (root / 'amule.conf').write_text(config)
         (root / 'nodes.dat').write_bytes(struct.pack('<III', 0, 1, 0))
-        env = dict(os.environ, HOME=str(root), XDG_CONFIG_HOME=str(root / 'xdg'))
+        env = dict(os.environ, HOME=str(root), XDG_CONFIG_HOME=str(root / 'xdg'),
+                   LC_ALL='C.UTF-8')
         with (root / 'stdout.log').open('w') as log:
+            snapshot = log_snapshot(root / 'logfile')
             proc = subprocess.Popen([binary, '-c', str(root)], stdout=log, stderr=log, env=env)
             try:
-                ec = connect_daemon(proc, ec_port)
+                ec = connect_daemon(proc, ec_port, root, peer_port, udp_port,
+                                    server_udp=True, snapshot=snapshot)
                 # No available network: fail without creating a search.
                 assert ec.call(C['EC_OP_KAD_STOP'])[0] == C['EC_OP_NOOP']
                 op, _ = ec.call(C['EC_OP_SEARCH_START'], [tag(C['EC_TAG_SEARCH_TYPE'], bytes([C['EC_SEARCH_ALL']]), 2, [string(C['EC_TAG_SEARCH_NAME'], 'ubuntu')])])
@@ -410,8 +482,10 @@ ECPassword={hashlib.md5(b'regression').hexdigest()}
                 # make it appear to be a standalone Kad search after restart.
                 stop_daemon(proc)
                 worker.join(timeout=2)
+                snapshot = log_snapshot(root / 'logfile')
                 proc = subprocess.Popen([binary, '-c', str(root)], stdout=log, stderr=log, env=env)
-                ec = connect_daemon(proc, ec_port)
+                ec = connect_daemon(proc, ec_port, root, peer_port, udp_port,
+                                    server_udp=True, snapshot=snapshot)
                 state = ec.progress(sid)
                 assert state[C['EC_TAG_SEARCH_LIFECYCLE_KIND']][0] == C['EC_SEARCH_ALL'], state
                 assert state[C['EC_TAG_SEARCH_LIFECYCLE_STATE']][0] == 2 and state[C['EC_TAG_SEARCH_KAD_ACTIVE']][0] == 0, state
@@ -447,8 +521,10 @@ ECPassword={hashlib.md5(b'regression').hexdigest()}
                         *((stored_search([stored_result('single.bin', networks=(10, 0))], kind), 1, None)
                           for kind in (C['EC_SEARCH_LOCAL'], C['EC_SEARCH_GLOBAL'], C['EC_SEARCH_KAD']))):
                     (root / 'StoredSearches.met').write_bytes(fixture)
+                    snapshot = log_snapshot(root / 'logfile')
                     proc = subprocess.Popen([binary, '-c', str(root)], stdout=log, stderr=log, env=env)
-                    ec = connect_daemon(proc, ec_port)
+                    ec = connect_daemon(proc, ec_port, root, peer_port, udp_port,
+                                        server_udp=True, snapshot=snapshot)
                     if expected:
                         assert ec.progress(123)[C['EC_TAG_SEARCH_RESULT_COUNT']][0] == expected
                         # Legacy saved ALL results contain only an aggregate, not
@@ -493,4 +569,4 @@ ECPassword={hashlib.md5(b'regression').hexdigest()}
 
 
 if __name__ == '__main__':
-    run(str(Path(sys.argv[1]).resolve()))
+    retry_port_collisions(run, str(Path(sys.argv[1]).resolve()))

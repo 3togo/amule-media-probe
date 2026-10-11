@@ -40,6 +40,7 @@ AddServerListFromClient=0
 UPnPEnabled=0
 TempDir={core}/Temp
 IncomingDir={core}/Incoming
+Language=en_US
 [ExternalConnect]
 AcceptExternalConnections=1
 ECAddress=127.0.0.1

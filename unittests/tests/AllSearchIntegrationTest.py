@@ -228,7 +228,7 @@ def stop_daemon(proc):
 def free_ports(n, udp_indices=(), peer_index=None):
     # Reserve TCP ports together, then check any UDP ports the daemon will use.
     # The daemon also binds a server UDP socket at its peer TCP port plus 3.
-    while True:
+    for _ in range(32):
         with ExitStack() as stack:
             sockets = [stack.enter_context(socket.socket()) for _ in range(n)]
             for sock in sockets:
@@ -252,6 +252,7 @@ def free_ports(n, udp_indices=(), peer_index=None):
                     break
             else:
                 return ports
+    raise PortCollision('Could not select available fixture UDP ports after 32 attempts')
 
 
 def run(binary):
@@ -275,6 +276,7 @@ AddServerListFromServer=0
 AddServerListFromClient=0
 TempDir={root}/Temp
 IncomingDir={root}/Incoming
+Language=en_US
 [ExternalConnect]
 AcceptExternalConnections=1
 ECAddress=127.0.0.1

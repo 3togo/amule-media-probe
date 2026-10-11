@@ -4,6 +4,7 @@
 """Offline regression checks for integration fixture port selection and diagnostics."""
 from pathlib import Path
 import errno
+from itertools import cycle
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -99,6 +100,17 @@ class IntegrationFixtureUnitTest(unittest.TestCase):
             ports = AllSearchIntegrationTest.free_ports(3, udp_indices=(2,), peer_index=1)
         self.assertEqual(ports, (40020, 40021, 40022))
         self.assertEqual(PortConflictSocket.udp_binds, [40012, 40022, 40024])
+        self.assertTrue(all(sock.closed for sock in PortConflictSocket.sockets))
+
+    def test_persistent_udp_conflict_fails_without_hanging(self):
+        PortConflictSocket.tcp_ports = cycle((40010, 40011, 40012))
+        PortConflictSocket.sockets = []
+        PortConflictSocket.udp_binds = []
+        with patch.object(AllSearchIntegrationTest.socket, 'socket', PortConflictSocket):
+            with self.assertRaisesRegex(AllSearchIntegrationTest.PortCollision,
+                                        'Could not select available fixture UDP ports'):
+                AllSearchIntegrationTest.free_ports(3, udp_indices=(2,), peer_index=1)
+        self.assertEqual(PortConflictSocket.udp_binds, [40012] * 32)
         self.assertTrue(all(sock.closed for sock in PortConflictSocket.sockets))
 
     def test_startup_retry_after_late_udp_collision(self):

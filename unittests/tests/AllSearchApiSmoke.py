@@ -19,7 +19,7 @@ def run(daemon_binary, api_binary, checks):
         core, api = root / 'core', root / 'api'
         core.mkdir()
         api.mkdir()
-        port, http, peer_port, udp_port = free_ports(4)
+        port, http, peer_port, udp_port = free_ports(4, udp_indices=(3,), peer_index=2)
         (core / 'amule.conf').write_text(f'''[eMule]
 Nick=regression
 Port={peer_port}

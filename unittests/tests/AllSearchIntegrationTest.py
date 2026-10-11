@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 """Exercise AllSearch through EC against an isolated daemon and a loopback eD2k server."""
 from contextlib import ExitStack
+import errno
 import hashlib
 import os
 from pathlib import Path
@@ -155,20 +156,39 @@ def stop_daemon(proc):
     assert code == 0, f"daemon shutdown failed: {code}"
 
 
-def free_ports(n):
-    # Keep every socket bound until all ports are chosen, so the kernel cannot
-    # assign the same ephemeral port twice within one fixture.
-    with ExitStack() as stack:
-        sockets = [stack.enter_context(socket.socket()) for _ in range(n)]
-        for sock in sockets:
-            sock.bind(('127.0.0.1', 0))
-        return tuple(sock.getsockname()[1] for sock in sockets)
+def free_ports(n, udp_indices=(), peer_index=None):
+    # Reserve TCP ports together, then check any UDP ports the daemon will use.
+    # The daemon also binds a server UDP socket at its peer TCP port plus 3.
+    while True:
+        with ExitStack() as stack:
+            sockets = [stack.enter_context(socket.socket()) for _ in range(n)]
+            for sock in sockets:
+                sock.bind(('127.0.0.1', 0))
+            ports = tuple(sock.getsockname()[1] for sock in sockets)
+            server_udp_port = ports[peer_index] + 3 if peer_index is not None else None
+            if server_udp_port is not None and server_udp_port > 65535:
+                continue
+            udp_ports = [ports[index] for index in udp_indices]
+            if server_udp_port is not None:
+                udp_ports.append(server_udp_port)
+            if len(set(udp_ports)) != len(udp_ports):
+                continue
+            for port in udp_ports:
+                sock = stack.enter_context(socket.socket(socket.AF_INET, socket.SOCK_DGRAM))
+                try:
+                    sock.bind(('127.0.0.1', port))
+                except OSError as error:
+                    if error.errno != errno.EADDRINUSE:
+                        raise
+                    break
+            else:
+                return ports
 
 
 def run(binary):
     with tempfile.TemporaryDirectory(prefix='amule-all-search-') as root:
         root = Path(root)
-        ec_port, peer_port, udp_port = free_ports(3)
+        ec_port, peer_port, udp_port = free_ports(3, udp_indices=(2,), peer_index=1)
         config = f'''[eMule]
 Nick=regression
 Port={peer_port}

@@ -143,18 +143,18 @@ class IntegrationFixtureUnitTest(unittest.TestCase):
     def test_startup_log_ignores_previous_launch(self):
         with tempfile.TemporaryDirectory() as temporary:
             log = Path(temporary) / 'logfile'
-            log.write_text('previous success\n')
+            log.write_bytes(b'previous success\n')
             snapshot = AllSearchIntegrationTest.log_snapshot(log)
             self.assertEqual(AllSearchIntegrationTest.new_log_text(log, snapshot), '')
-            with log.open('a') as stream:
-                stream.write('current failure\n')
+            with log.open('ab') as stream:
+                stream.write(b'current failure\n')
             self.assertEqual(AllSearchIntegrationTest.new_log_text(log, snapshot),
                              'current failure\n')
-            log.write_text('truncated and regrown with different startup lines\n')
+            log.write_bytes(b'truncated and regrown with different startup lines\n')
             self.assertEqual(AllSearchIntegrationTest.new_log_text(log, snapshot),
                              'truncated and regrown with different startup lines\n')
             replacement = Path(temporary) / 'replacement'
-            replacement.write_text('new file success\n')
+            replacement.write_bytes(b'new file success\n')
             replacement.replace(log)
             self.assertEqual(AllSearchIntegrationTest.new_log_text(log, snapshot),
                              'new file success\n')

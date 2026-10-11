@@ -58,7 +58,7 @@ def keyword_round_trip(udp_port, key_id, publish):
 binary = str(Path(sys.argv[1]).resolve())
 with tempfile.TemporaryDirectory(prefix='kad-index-review-') as directory:
     root = Path(directory)
-    port, udp_port, peer_port = free_ports(3)
+    port, udp_port, peer_port = free_ports(3, udp_indices=(1,), peer_index=2)
     count = 50000
     with (root / 'load_index.dat').open('wb') as persisted:
         persisted.write(struct.pack('<III', 1, int(time.time()), count))

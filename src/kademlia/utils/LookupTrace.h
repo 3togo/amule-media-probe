@@ -42,15 +42,6 @@ public:
 	using ID = std::array<uint8_t, 16>;
 	static constexpr size_t MaxPeers = 128;
 	static constexpr size_t MaxEvents = 256;
-	enum class Kind
-	{
-		Query,
-		Reply,
-		Referral,
-		ItemQuery,
-		ItemReply,
-		Result
-	};
 	struct Peer
 	{
 		ID id{};
@@ -67,7 +58,6 @@ public:
 	};
 	struct Event
 	{
-		Kind kind;
 		Address peer;
 		Address source;
 		uint64_t tick;
@@ -103,10 +93,10 @@ public:
 	void Referral(Address peer, Address source, uint64_t tick, bool closer, const ID &distance = {})
 	{
 		if (m_peers.count(source)) {
-			Record({ Kind::Referral, peer, source, tick, closer, distance });
+			Record({ peer, source, tick, closer, distance });
 		}
 	}
-	void ItemRequest(Address peer, uint64_t tick)
+	void ItemRequest(Address peer)
 	{
 		auto it = m_peers.find(peer);
 		if (it == m_peers.end()) {
@@ -114,7 +104,7 @@ public:
 		}
 		++it->second.itemRequests;
 	}
-	void ItemReply(Address peer, uint64_t tick)
+	void ItemReply(Address peer)
 	{
 		auto it = m_peers.find(peer);
 		if (it == m_peers.end() || it->second.itemRequests == 0) {
@@ -122,7 +112,7 @@ public:
 		}
 		++it->second.itemReplies;
 	}
-	void Result(Address peer, uint64_t tick)
+	void Result(Address peer)
 	{
 		auto it = m_peers.find(peer);
 		if (it == m_peers.end() || it->second.itemRequests == 0) {
@@ -132,7 +122,6 @@ public:
 	}
 	const std::map<Address, Peer> &Peers() const { return m_peers; }
 	const std::deque<Event> &Events() const { return m_events; }
-	uint32_t Omitted() const { return m_omittedPeers + m_evictedReferrals; }
 	uint32_t OmittedPeers() const { return m_omittedPeers; }
 	uint32_t EvictedReferrals() const { return m_evictedReferrals; }
 	// This is an observation at the supplied ceiling, not a change to scheduling.

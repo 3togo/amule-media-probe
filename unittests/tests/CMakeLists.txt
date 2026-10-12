@@ -2391,17 +2391,21 @@ target_link_libraries (LookupTraceTest muleunit mulecommon)
 add_executable (LookupDiagnosticsTest
 	LookupDiagnosticsTest.cpp
 	${CMAKE_SOURCE_DIR}/src/kademlia/utils/LookupDiagnostics.cpp
+	${CMAKE_SOURCE_DIR}/src/kademlia/utils/LookupDiagnosticsSnapshot.cpp
+	${CMAKE_SOURCE_DIR}/src/kademlia/utils/LookupDiagnosticsEC.cpp
 	${CMAKE_SOURCE_DIR}/src/LoggerConsole.cpp
 )
 add_test (NAME LookupDiagnosticsTest COMMAND LookupDiagnosticsTest)
 target_include_directories (LookupDiagnosticsTest PRIVATE
 	${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/src/include)
-target_link_libraries (LookupDiagnosticsTest muleunit muleappcommon mulecommon)
+target_link_libraries (LookupDiagnosticsTest muleunit ec muleappcommon mulecommon)
 
 if (TARGET wxWidgets::CORE)
 	add_executable (KadLookupViewTest
 		KadLookupViewTest.cpp
 		${CMAKE_SOURCE_DIR}/src/kademlia/utils/LookupDiagnosticsEC.cpp
+		${CMAKE_SOURCE_DIR}/src/kademlia/utils/LookupDiagnostics.cpp
+		${CMAKE_SOURCE_DIR}/src/kademlia/utils/LookupDiagnosticsSnapshot.cpp
 		# EC Debug logging needs the same standalone logger as the other EC tests.
 		${CMAKE_SOURCE_DIR}/src/LoggerConsole.cpp
 	)

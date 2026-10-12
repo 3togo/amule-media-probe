@@ -632,7 +632,7 @@ namespace
 std::deque<LookupSnapshot> s_recentLookups;
 }
 
-void CSearchManager::RememberLookup(const CSearch &search)
+void CSearchManager::RememberLookup(CSearch &search)
 {
 	if (search.GetLookupTrace().Peers().empty()) {
 		return;
@@ -645,26 +645,32 @@ void CSearchManager::RememberLookup(const CSearch &search)
 		search.m_lookupKeyword,
 		search.GetLookupStarted(),
 		::GetTickCount64(),
-		search.GetLookupTrace() });
+		std::move(search.m_lookupTrace) });
 }
 
 void CSearchManager::GetLookupSnapshots(
 	std::vector<LookupSnapshot> &active, std::deque<LookupSnapshot> &recent)
 {
+	std::vector<const CSearch *> searches;
+	searches.reserve(m_searches.size());
 	for (const auto &item : m_searches) {
-		const auto &search = *item.second;
-		active.push_back({ search.GetSearchTypes(),
-			search.GetTarget().ToHexString(),
-			search.m_lookupKeyword,
-			search.GetLookupStarted(),
-			0,
-			search.GetLookupTrace() });
+		searches.push_back(item.second.get());
 	}
-	std::sort(active.begin(), active.end(), [](const LookupSnapshot &a, const LookupSnapshot &b) {
-		return a.started > b.started;
+	std::sort(searches.begin(), searches.end(), [](const CSearch *a, const CSearch *b) {
+		return a->GetLookupStarted() > b->GetLookupStarted();
 	});
-	if (active.size() > MaxLookupHistory) {
-		active.resize(MaxLookupHistory);
+	if (searches.size() > MaxLookupHistory) {
+		searches.resize(MaxLookupHistory);
+	}
+	active.clear();
+	active.reserve(searches.size());
+	for (const auto *search : searches) {
+		active.push_back({ search->GetSearchTypes(),
+			search->GetTarget().ToHexString(),
+			search->m_lookupKeyword,
+			search->GetLookupStarted(),
+			0,
+			search->GetLookupTrace() });
 	}
 	recent = s_recentLookups;
 }
@@ -674,13 +680,13 @@ wxString CSearchManager::GetLookupDiagnostics()
 	std::vector<LookupSnapshot> active;
 	std::deque<LookupSnapshot> recent;
 	GetLookupSnapshots(active, recent);
-	return FormatLookupDiagnostics(active, recent, ::GetTickCount64());
+	return FormatLookupDiagnostics(MakeLookupReports(active, recent, ::GetTickCount64()));
 }
 
 void CSearchManager::ProcessResultReply(const CUInt128 &target, uint32_t fromIP, uint16_t fromPort)
 {
 	const auto found = m_searches.find(target);
 	if (found != m_searches.end()) {
-		found->second->m_lookupTrace.ItemReply({ fromIP, fromPort }, ::GetTickCount64());
+		found->second->m_lookupTrace.ItemReply({ fromIP, fromPort });
 	}
 }

@@ -11,19 +11,7 @@ import time
 import subprocess
 import sys
 import tempfile
-from AllSearchIntegrationTest import C, connect_daemon
-
-
-def distinct_ports():
-    # Keep all reservations until every port is selected, including UDP.
-    with socket.socket() as ec, socket.socket() as ed2k, socket.socket(type=socket.SOCK_DGRAM) as kad:
-        ec.bind(('127.0.0.1', 0))
-        ed2k.bind(('127.0.0.1', 0))
-        kad.bind(('127.0.0.1', 0))
-        ports = ec.getsockname()[1], ed2k.getsockname()[1], kad.getsockname()[1]
-        if len(set(ports)) == 3:
-            return ports
-    return distinct_ports()
+from AllSearchIntegrationTest import C, connect_daemon, free_ports, retry_port_collisions
 
 
 def local_peer():
@@ -52,7 +40,7 @@ def run(binary, populated=False):
         return 77
     with tempfile.TemporaryDirectory(prefix='amule-kad-diagnostics-') as directory:
         root = Path(directory)
-        port, ed2k_port, kad_port = distinct_ports()
+        port, ed2k_port, kad_port = free_ports(3, udp_indices=(2,), peer_index=1)
         if peer:
             ip, udp = peer.getsockname()
             contact = struct.pack('<4IIHHB2IB', 0xA0000000, 0, 0, 1,
@@ -86,7 +74,7 @@ ECPassword={hashlib.md5(b'regression').hexdigest()}
         with (root / 'stdout.log').open('w') as log:
             proc = subprocess.Popen([binary, '-c', str(root)], stdout=log, stderr=log, env=env)
             try:
-                ec = connect_daemon(proc, port)
+                ec = connect_daemon(proc, port, root, ed2k_port, kad_port)
 
                 op, tags = ec.call(C['EC_OP_GET_KAD_LOOKUPS'])
                 assert op == C['EC_OP_GET_KAD_LOOKUPS']
@@ -116,7 +104,7 @@ ECPassword={hashlib.md5(b'regression').hexdigest()}
                     assert ec.call(C['EC_OP_SEARCH_STOP'], [integer(C['EC_TAG_SEARCH_ID'], sid)])[0] == C['EC_OP_MISC_DATA']
                     assert snapshot()[C['EC_TAG_KAD_LOOKUP_ACTIVE']][0] == 0, snapshot()
                     ec.sock.close()
-                    ec = connect_daemon(proc, port)
+                    ec = connect_daemon(proc, port, root, ed2k_port, kad_port)
                     assert peer_record()[C['EC_TAG_KAD_LOOKUP_PEER_PORT']][0] == udp, snapshot()
                     assert ec.call(C['EC_OP_KAD_STOP'])[0] == C['EC_OP_NOOP']
                 ec.sock.close()
@@ -137,4 +125,4 @@ ECPassword={hashlib.md5(b'regression').hexdigest()}
 
 
 if __name__ == '__main__':
-    sys.exit(run(str(Path(sys.argv[1]).resolve()), '--populated' in sys.argv) or 0)
+    sys.exit(retry_port_collisions(run, str(Path(sys.argv[1]).resolve()), '--populated' in sys.argv) or 0)

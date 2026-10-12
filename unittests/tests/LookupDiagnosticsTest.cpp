@@ -23,7 +23,9 @@
 //
 
 #include <muleunit/test.h>
-#include <kademlia/utils/LookupDiagnostics.h>
+#include <kademlia/utils/LookupDiagnosticsEC.h>
+#include <kademlia/kademlia/Search.h>
+#include "libs/ec/cpp/ECPacket.h"
 using namespace muleunit;
 using namespace Kademlia;
 DECLARE_SIMPLE(LookupDiagnostics)
@@ -32,10 +34,10 @@ TEST(LookupDiagnostics, ExplainsRoutingAndItemStages)
 	LookupSnapshot lookup{ 3, "fixture", "example", 100, 300, {} };
 	lookup.trace.Query({ 0x01020304, 4665 }, {}, 100);
 	lookup.trace.Reply({ 0x01020304, 4665 }, 125);
-	lookup.trace.ItemRequest({ 0x01020304, 4665 }, 130);
-	lookup.trace.ItemReply({ 0x01020304, 4665 }, 140);
+	lookup.trace.ItemRequest({ 0x01020304, 4665 });
+	lookup.trace.ItemReply({ 0x01020304, 4665 });
 	lookup.trace.Referral({ 0x02030405, 4665 }, { 0x01020304, 4665 }, 150, true);
-	auto text = FormatLookupDiagnostics({ lookup }, {}, 4000);
+	auto text = FormatLookupDiagnostics(MakeLookupReports({ lookup }, {}, 4000));
 	ASSERT_TRUE(text.Contains("1 routing requests, 1 replies, last RTT 25 ms"));
 	ASSERT_TRUE(text.Contains("1 item requests, 1 result packets, 0 result records"));
 	ASSERT_TRUE(text.Contains("1.2.3.4:4665"));
@@ -54,11 +56,104 @@ TEST(LookupDiagnostics, UncappedUnicodeOutput)
 	}
 	std::vector<LookupSnapshot> active(16, lookup);
 	std::deque<LookupSnapshot> recent(16, lookup);
-	const auto text = FormatLookupDiagnostics(active, recent, 4000);
+	const auto text = FormatLookupDiagnostics(MakeLookupReports(active, recent, 4000));
 	ASSERT_FALSE(text.Contains("Diagnostic output truncated"));
 	ASSERT_TRUE(text.utf8_str().length() > 65535);
 }
 TEST(LookupDiagnostics, EmptyHistory)
 {
-	ASSERT_TRUE(FormatLookupDiagnostics({}, {}, 0).Contains("No Kad lookup history available"));
+	ASSERT_TRUE(FormatLookupDiagnostics({}).Contains("No Kad lookup history available"));
+}
+
+TEST(LookupDiagnostics, PopulatedReportRoundTrip)
+{
+	LookupSnapshot lookup{
+		CSearch::KEYWORD, "target", wxString::FromUTF8("query \xc3\xa9"), 100, 5000, {}
+	};
+	CLookupTrace::ID id{}, distance{};
+	id[0] = 0xab;
+	distance[15] = 7;
+	const CLookupTrace::Address address{ 0x01020304, 65535 };
+	lookup.trace.Query(address, id, 100, 8, distance);
+	lookup.trace.Reply(address, 125);
+	lookup.trace.ItemRequest(address);
+	lookup.trace.ItemReply(address);
+	lookup.trace.ItemReply(address);
+	lookup.trace.Result(address);
+	lookup.trace.Referral({ 0x02030405, 1234 }, address, 150, true, distance);
+	lookup.trace.Referral({ 0x03040506, 2345 }, address, 50, false, id);
+	lookup.trace.Query({ 0x04050607, 3456 }, distance, 200, 9, id);
+	for (uint32_t i = 1; i <= 128; ++i) {
+		lookup.trace.Query({ i, 1 }, {}, 100);
+	}
+	for (unsigned i = 0; i < CLookupTrace::MaxEvents; ++i) {
+		lookup.trace.Referral({ i, 4665 }, address, 200 + i, i % 2 == 0, distance);
+	}
+	const auto original = MakeLookupReports({ lookup }, { lookup }, 4000);
+	CECPacket packet(EC_OP_GET_KAD_LOOKUPS);
+	AddLookupDiagnosticsTags(packet, original);
+	LookupReports decoded;
+	ASSERT_TRUE(DecodeLookupDiagnosticsTags(packet, decoded));
+	ASSERT_EQUALS(original.size(), decoded.size());
+	ASSERT_EQUALS(FormatLookupDiagnostics(original), FormatLookupDiagnostics(decoded));
+	for (size_t i = 0; i < original.size(); ++i) {
+		const auto &a = original[i];
+		const auto &b = decoded[i];
+		ASSERT_TRUE(a.type == b.type);
+		ASSERT_EQUALS(a.target, b.target);
+		ASSERT_EQUALS(a.keyword, b.keyword);
+		ASSERT_EQUALS(a.active, b.active);
+		ASSERT_EQUALS(a.overdue, b.overdue);
+		ASSERT_EQUALS(a.omittedPeers, b.omittedPeers);
+		ASSERT_EQUALS(a.evictedReferrals, b.evictedReferrals);
+		ASSERT_EQUALS(a.peers.size(), b.peers.size());
+		ASSERT_EQUALS(a.referrals.size(), b.referrals.size());
+		for (size_t j = 0; j < a.peers.size(); ++j) {
+			const auto &x = a.peers[j];
+			const auto &y = b.peers[j];
+			ASSERT_TRUE(x.address == y.address && x.id == y.id && x.distance == y.distance);
+			ASSERT_EQUALS(x.kadVersion, y.kadVersion);
+			ASSERT_EQUALS(x.requests, y.requests);
+			ASSERT_EQUALS(x.replies, y.replies);
+			ASSERT_EQUALS(x.roundTrip, y.roundTrip);
+			ASSERT_EQUALS(x.itemRequests, y.itemRequests);
+			ASSERT_EQUALS(x.itemReplies, y.itemReplies);
+			ASSERT_EQUALS(x.results, y.results);
+			ASSERT_EQUALS(x.pending, y.pending);
+		}
+		for (size_t j = 0; j < a.referrals.size(); ++j) {
+			const auto &x = a.referrals[j];
+			const auto &y = b.referrals[j];
+			ASSERT_TRUE(x.source == y.source && x.peer == y.peer && x.distance == y.distance);
+			ASSERT_EQUALS(x.elapsed, y.elapsed);
+			ASSERT_EQUALS(x.closer, y.closer);
+		}
+	}
+	// A bad row after a valid one must not expose a partially decoded report.
+	packet.AddTag(CECTag(EC_TAG_KAD_LOOKUP, uint32_t(42)));
+	ASSERT_FALSE(DecodeLookupDiagnosticsTags(packet, decoded));
+	ASSERT_TRUE(decoded.empty());
+	CECPacket empty(EC_OP_GET_KAD_LOOKUPS);
+	ASSERT_TRUE(DecodeLookupDiagnosticsTags(empty, decoded));
+	ASSERT_TRUE(decoded.empty());
+}
+
+TEST(LookupDiagnostics, MapsEveryCoreSearchType)
+{
+	const std::pair<uint32_t, LookupType> types[] = { { CSearch::NODE, LookupType::Node },
+		{ CSearch::NODECOMPLETE, LookupType::CompleteNode },
+		{ CSearch::FILE, LookupType::File },
+		{ CSearch::KEYWORD, LookupType::Keyword },
+		{ CSearch::NOTES, LookupType::Notes },
+		{ CSearch::STOREFILE, LookupType::PublishFile },
+		{ CSearch::STOREKEYWORD, LookupType::PublishKeyword },
+		{ CSearch::STORENOTES, LookupType::PublishNotes },
+		{ CSearch::FINDBUDDY, LookupType::FindBuddy },
+		{ CSearch::FINDSOURCE, LookupType::FindSource },
+		{ CSearch::NODESPECIAL, LookupType::SpecialNode },
+		{ CSearch::NODEFWCHECKUDP, LookupType::UDPFirewallCheck } };
+	for (const auto &type : types) {
+		ASSERT_TRUE(LookupTypeFromSearch(type.first) == type.second);
+	}
+	ASSERT_TRUE(LookupTypeFromSearch(999) == LookupType::Unknown);
 }

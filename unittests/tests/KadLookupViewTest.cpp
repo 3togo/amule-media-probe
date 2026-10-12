@@ -62,8 +62,11 @@ static void VerifyLifecycle()
 	distance[15] = 7;
 	snapshot.trace.Query({ 0x01020304, 4665 }, id, 100, 8, distance);
 	snapshot.trace.Referral({ 0x02030405, 4665 }, { 0x01020304, 4665 }, 120, true, distance);
-	Kademlia::AddLookupDiagnosticsTags(valid, { snapshot }, {}, 4000);
+	Kademlia::AddLookupDiagnosticsTags(valid, Kademlia::MakeLookupReports({ snapshot }, {}, 4000));
 	(new CKadLookupReply(view, button))->HandlePacket(&valid);
+	Check(view->GetSnapshot() == Kademlia::FormatLookupDiagnostics(
+					     Kademlia::MakeLookupReports({ snapshot }, {}, 4000)),
+		"Local and remote reports differ");
 	Check(view->GetSnapshot().Contains("target") && view->GetSnapshot().Contains("Keyword") &&
 			view->GetSnapshot().Contains("1.2.3.4:4665") &&
 			view->GetSnapshot().Contains("Kad version 8") &&

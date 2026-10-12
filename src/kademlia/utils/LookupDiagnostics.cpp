@@ -23,8 +23,6 @@
 //
 
 #include "LookupDiagnostics.h"
-#include "../kademlia/Search.h"
-#include "../../NetworkFunctions.h"
 #include <common/Format.h>
 #include <wx/intl.h>
 using namespace Kademlia;
@@ -39,97 +37,91 @@ wxString HexID(const CLookupTrace::ID &id)
 	return text;
 }
 
-wxString SearchType(uint32_t type)
+wxString SearchType(LookupType type)
 {
 	switch (type) {
-	case CSearch::NODE:
+	case LookupType::Node:
 		return _("Node");
-	case CSearch::NODECOMPLETE:
+	case LookupType::CompleteNode:
 		return _("Complete node");
-	case CSearch::FILE:
+	case LookupType::File:
 		return _("File");
-	case CSearch::KEYWORD:
+	case LookupType::Keyword:
 		return _("Keyword");
-	case CSearch::NOTES:
+	case LookupType::Notes:
 		return _("Notes");
-	case CSearch::STOREFILE:
+	case LookupType::PublishFile:
 		return _("Publish file");
-	case CSearch::STOREKEYWORD:
+	case LookupType::PublishKeyword:
 		return _("Publish keyword");
-	case CSearch::STORENOTES:
+	case LookupType::PublishNotes:
 		return _("Publish notes");
-	case CSearch::FINDBUDDY:
+	case LookupType::FindBuddy:
 		return _("Find buddy");
-	case CSearch::FINDSOURCE:
+	case LookupType::FindSource:
 		return _("Find source");
-	case CSearch::NODESPECIAL:
+	case LookupType::SpecialNode:
 		return _("Special node");
-	case CSearch::NODEFWCHECKUDP:
+	case LookupType::UDPFirewallCheck:
 		return _("UDP firewall check");
 	default:
-		return CFormat(_("type %u")) % type;
+		return CFormat(_("type %u")) % static_cast<uint32_t>(type);
 	}
 }
 
-wxString DescribeLookup(const LookupSnapshot &snapshot, bool active, uint64_t now)
+wxString Address(CLookupTrace::Address address)
 {
-	const auto &trace = snapshot.trace;
+	const auto ip = address.first;
+	return CFormat("%u.%u.%u.%u:%u") % uint8_t(ip >> 24) % uint8_t(ip >> 16) % uint8_t(ip >> 8) %
+	       uint8_t(ip) % address.second;
+}
+
+wxString DescribeLookup(const LookupReport &snapshot)
+{
 	wxString text = CFormat(_("Lookup %s (%s, %s): %u peers, %u overdue routing requests, "
 				  "%u omitted peers, %u evicted referrals")) %
 			snapshot.target % SearchType(snapshot.type) %
-			(active ? _("active lookup") : _("finished lookup")) %
-			static_cast<unsigned>(trace.Peers().size()) %
-			static_cast<unsigned>(trace.Overdue(now, 3000)) % trace.OmittedPeers() %
-			trace.EvictedReferrals();
+			(snapshot.active ? _("active lookup") : _("finished lookup")) %
+			static_cast<unsigned>(snapshot.peers.size()) % snapshot.overdue %
+			snapshot.omittedPeers % snapshot.evictedReferrals;
 	text += "\n";
 	if (!snapshot.keyword.empty()) {
 		text += "  ";
 		text += CFormat(_("Keyword: %s")) % snapshot.keyword;
 		text += "\n";
 	}
-	for (const auto &item : trace.Peers()) {
-		const auto &row = item.second;
+	for (const auto &row : snapshot.peers) {
 		text += "  ";
 		text += CFormat(_("%s [%s], distance %s, Kad version %u (%s): %u routing requests, "
 				  "%u replies, last RTT %u ms, %u item requests, %u result packets, "
 				  "%u result records")) %
-			KadIPPortToString(item.first.first, item.first.second) % HexID(row.id) %
-			HexID(row.distance) % static_cast<unsigned>(row.kadVersion) %
+			Address(row.address) % HexID(row.id) % HexID(row.distance) %
+			static_cast<unsigned>(row.kadVersion) %
 			(row.pending ? _("awaiting reply") : _("reply received")) % row.requests %
 			row.replies % static_cast<unsigned>(row.roundTrip) % row.itemRequests %
 			row.itemReplies % row.results;
 		text += "\n";
 	}
-	for (const auto &event : trace.Events()) {
-		if (event.kind == Kademlia::CLookupTrace::Kind::Referral) {
-			text += "  ";
-			text += CFormat(_("+%u ms: %s referred %s (distance %s, %s)")) %
-				static_cast<unsigned>(
-					event.tick >= snapshot.started ? event.tick - snapshot.started : 0) %
-				KadIPPortToString(event.source.first, event.source.second) %
-				KadIPPortToString(event.peer.first, event.peer.second) %
-				HexID(event.distance) %
-				(event.closer ? _("closer to target") : _("no closer to target"));
-			text += "\n";
-		}
+	for (const auto &event : snapshot.referrals) {
+		text += "  ";
+		text += CFormat(_("+%u ms: %s referred %s (distance %s, %s)")) % event.elapsed %
+			Address(event.source) % Address(event.peer) % HexID(event.distance) %
+			(event.closer ? _("closer to target") : _("no closer to target"));
+		text += "\n";
 	}
 	return text + "\n";
 }
 } // namespace
-wxString Kademlia::FormatLookupDiagnostics(
-	const std::vector<LookupSnapshot> &active, const std::deque<LookupSnapshot> &recent, uint64_t now)
+wxString Kademlia::FormatLookupDiagnostics(const LookupReports &reports)
 {
 	wxString text = _("Overdue means a routing request unanswered for at least 3 seconds; late replies "
 			  "may still arrive. Result records are received records, not unique files. Only "
 			  "bounded recent history is retained.");
 	text += "\n\n";
-	for (const auto &snapshot : active) {
-		text += DescribeLookup(snapshot, true, now);
+	for (const auto &snapshot : reports) {
+		text += DescribeLookup(snapshot);
 	}
-	for (auto it = recent.rbegin(); it != recent.rend(); ++it) {
-		text += DescribeLookup(*it, false, it->finished);
-	}
-	if (active.empty() && recent.empty()) {
+	if (reports.empty()) {
 		text += _("No Kad lookup history available.");
 	}
 	return text;

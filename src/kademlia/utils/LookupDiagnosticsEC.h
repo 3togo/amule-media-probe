@@ -31,9 +31,8 @@ class CECPacket;
 
 namespace Kademlia
 {
-void AddLookupDiagnosticsTags(CECPacket &packet,
-	const std::vector<LookupSnapshot> &active,
-	const std::deque<LookupSnapshot> &recent,
-	uint64_t now);
+void AddLookupDiagnosticsTags(CECPacket &packet, const LookupReports &reports);
+// Reject malformed replies without leaving partial report data.
+bool DecodeLookupDiagnosticsTags(const CECPacket &packet, LookupReports &reports);
 } // namespace Kademlia
 #endif

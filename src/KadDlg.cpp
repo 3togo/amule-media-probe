@@ -74,8 +74,7 @@ void CKadDlg::Init()
 	SetGraphColors();
 
 	UpdateConnectButton();
-	m_lookupButton = new wxButton(this, wxID_ANY, _("Lookup diagnostics"));
-	GetSizer()->Add(m_lookupButton, 0, wxALL, 5);
+	m_lookupButton = CastChild("kadLookupDiagnostics", wxButton);
 	m_lookupButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent &event) {
 		if (!m_lookupView) {
 			m_lookupView = new CKadLookupView(this);
@@ -93,8 +92,8 @@ void CKadDlg::Init()
 		CECPacket request(EC_OP_GET_KAD_LOOKUPS);
 		theApp->m_connect->SendRequest(new CKadLookupReply(m_lookupView.get(), button), &request);
 #else
-  (void)event;
-  m_lookupView->SetSnapshot(Kademlia::CSearchManager::GetLookupDiagnostics());
+		(void)event;
+		m_lookupView->SetSnapshot(Kademlia::CSearchManager::GetLookupDiagnostics());
 #endif
 	});
 	UpdateConnectButton();

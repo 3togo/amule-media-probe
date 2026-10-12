@@ -776,10 +776,10 @@ EC_TAG_SELECT_PREFS                       0x1000
 
 	EC_TAG_KAD_LOOKUP                         0x2100
 		EC_TAG_KAD_LOOKUP_TARGET                  0x2101
+## Stable LookupType wire value (LookupDiagnostics.h), independent of CSearch.
 		EC_TAG_KAD_LOOKUP_TYPE                    0x2102
 		EC_TAG_KAD_LOOKUP_KEYWORD                 0x2103
 		EC_TAG_KAD_LOOKUP_ACTIVE                  0x2104
-		EC_TAG_KAD_LOOKUP_STARTED                 0x2105
 		EC_TAG_KAD_LOOKUP_OVERDUE                 0x2106
 		EC_TAG_KAD_LOOKUP_OMITTED_PEERS           0x2107
 		EC_TAG_KAD_LOOKUP_EVICTED_REFERRALS       0x2108

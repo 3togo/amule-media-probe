@@ -140,7 +140,7 @@ public:
 	static bool IsFWCheckUDPSearch(const CUInt128 &target);
 
 private:
-	static void RememberLookup(const CSearch &search);
+	static void RememberLookup(CSearch &search);
 	static void DeleteSearch(SearchMap::iterator it);
 	static void FindNode(const CUInt128 &id, bool complete);
 	static bool FindNodeSpecial(const CUInt128 &id, CKadClientSearcher *requester);

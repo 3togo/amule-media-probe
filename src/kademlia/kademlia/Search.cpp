@@ -644,7 +644,7 @@ void CSearch::StorePacket()
 				NULL);
 		}
 		m_totalRequestAnswers++;
-		m_lookupTrace.ItemRequest({ from->GetIPAddress(), from->GetUDPPort() }, ::GetTickCount64());
+		m_lookupTrace.ItemRequest({ from->GetIPAddress(), from->GetUDPPort() });
 		break;
 	}
 	case KEYWORD: {
@@ -698,7 +698,7 @@ void CSearch::StorePacket()
 				NULL);
 		}
 		m_totalRequestAnswers++;
-		m_lookupTrace.ItemRequest({ from->GetIPAddress(), from->GetUDPPort() }, ::GetTickCount64());
+		m_lookupTrace.ItemRequest({ from->GetIPAddress(), from->GetUDPPort() });
 		break;
 	}
 	case NOTES: {
@@ -756,7 +756,7 @@ void CSearch::StorePacket()
 				NULL);
 		}
 		m_totalRequestAnswers++;
-		m_lookupTrace.ItemRequest({ from->GetIPAddress(), from->GetUDPPort() }, ::GetTickCount64());
+		m_lookupTrace.ItemRequest({ from->GetIPAddress(), from->GetUDPPort() });
 		break;
 	}
 	case STOREFILE: {
@@ -1081,7 +1081,7 @@ void CSearch::StorePacket()
 
 void CSearch::ProcessResult(const CUInt128 &answer, TagPtrList *info, uint32_t fromIP, uint16_t fromPort)
 {
-	m_lookupTrace.Result({ fromIP, fromPort }, ::GetTickCount64());
+	m_lookupTrace.Result({ fromIP, fromPort });
 	wxString type = "Unknown";
 	switch (m_type) {
 	case FILE:

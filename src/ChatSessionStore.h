@@ -163,6 +163,10 @@ public:
 		uint16 port = 0;
 		uint32 last_activity = 0; //!< unix seconds, drives session eviction
 		std::deque<Message> messages;
+		// One retained challenge, independent of transcript eviction. The live
+		// client's CAPTCHA state determines whether it is still pending.
+		uint32 captcha_id = 0;
+		wxString captcha_image;
 
 		// Legacy EC only: zero means this route cannot be represented as IPv4.
 		uint64 LegacyGuiId() const;

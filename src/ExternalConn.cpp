@@ -1615,7 +1615,13 @@ CECTag EncodeChatSession(
 		// unroutable address read as online.
 		tag.AddTag(CECTag(EC_TAG_CLIENT_CONNECTED, client->IsConnected()));
 	}
-	tag.AddTag(CECTag(EC_TAG_CHAT_CAPTCHA_ID, client ? client->GetPendingChatCaptchaId() : 0));
+	const uint32 pendingCaptcha = client ? client->GetPendingChatCaptchaId() : 0;
+	tag.AddTag(CECTag(EC_TAG_CHAT_CAPTCHA_ID, pendingCaptcha));
+	// The cursor filters history only. A live challenge must remain recoverable
+	// after an EC reconnect or after unrelated messages evict its transcript row.
+	if (pendingCaptcha && session.captcha_id == pendingCaptcha && !session.captcha_image.IsEmpty()) {
+		tag.AddTag(CECTag(EC_TAG_CHAT_CAPTCHA_IMAGE, session.captcha_image));
+	}
 	if (const CFriend *f = theApp->friendlist->FindFriend(session.peer.Hash(), 0, 0)) {
 		tag.AddTag(CECTag(EC_TAG_FRIEND, f->ECID()));
 	}

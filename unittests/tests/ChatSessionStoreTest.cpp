@@ -614,3 +614,26 @@ TEST(ChatSessionStore, CaptchaAcceptsTopDownAnd16BitWindowsBitmaps)
 	put32(2, static_cast<uint32>(bmp.size()));
 	ASSERT_TRUE(!IsValidChatCaptcha(bmp.data(), bmp.size()));
 }
+
+TEST(ChatSessionStore, PendingCaptchaImageSurvivesTranscriptEvictionAndPromotion)
+{
+	CChatSessionStore store;
+	const auto route = CNetworkAddress::FromIPv4NetworkOrder(0x0100000Au);
+	const auto provisional = store.Open(CMD4Hash(), route, 4662, "peer");
+	const auto bmp = CaptchaBitmap();
+	ASSERT_TRUE(store.AddCaptchaChallenge(provisional, bmp.data(), bmp.size()));
+	const auto id = store.LastMsgId();
+	for (size_t i = 0; i < CChatSessionStore::MAX_MESSAGES_PER_SESSION; ++i) {
+		store.AddIncoming(provisional, "peer", "ordinary message", route, 4662);
+	}
+	ASSERT_TRUE(store.Find(provisional)->messages.front().id > id);
+	const auto hash = Peer(103);
+	store.AddOutgoing(CChatPeer(hash), "known peer");
+	ASSERT_TRUE(store.Promote(provisional, hash));
+	const auto *session = store.Find(CChatPeer(hash));
+	ASSERT_EQUALS(id, session->captcha_id);
+	ASSERT_EQUALS(wxBase64Encode(bmp.data(), bmp.size()), session->captcha_image);
+	ASSERT_TRUE(store.AddCaptchaResult(CChatPeer(hash), 0));
+	ASSERT_EQUALS(static_cast<uint32>(0), session->captcha_id);
+	ASSERT_TRUE(session->captcha_image.empty());
+}

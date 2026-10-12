@@ -12,10 +12,16 @@ from pathlib import Path
 import socket
 import struct
 import subprocess
+import sys
 import tempfile
 import time
 import urllib.error
 import urllib.request
+
+
+# Reuse the suite's EC codec, without its daemon-start or English-log helpers.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tests"))
+from AllSearchIntegrationTest import EC, C, integer
 
 
 def unused_port():
@@ -100,6 +106,7 @@ StaticRoot={Path(__file__).resolve().parents[3] / 'src/webapi/static'}
     processes = []
     logs = []
     stream = None
+    ec = None
     try:
         for executable, directory, args in [(daemon, daemon_dir, ["-o"]),
                                              (api, api_dir, ["--foreground"])]:
@@ -133,6 +140,7 @@ StaticRoot={Path(__file__).resolve().parents[3] / 'src/webapi/static'}
         token = request("/auth/login?include_token=true", {"password": "captcha-admin"})["token"]
         stream = urllib.request.urlopen(urllib.request.Request(root + "/events",
             headers={"Authorization": "Bearer " + token}), timeout=15)
+        ec = EC(ec_port, password="captcha-test")
         with socket.socket() as listener:
             listener.bind(("127.0.0.1", 0))
             listener.listen()
@@ -187,6 +195,16 @@ StaticRoot={Path(__file__).resolve().parents[3] / 'src/webapi/static'}
                     challenge = messages[-1]
                     assert challenge["type"] == "captcha_challenge"
                     assert base64.b64decode(challenge["captcha_image"], validate=True) == bmp
+                    # A reconnecting GUI has already consumed this transcript id.
+                    # Pending state must still carry the image with an empty delta.
+                    op, tags = ec.call(C["EC_OP_GET_CHAT_SESSIONS"],
+                        [integer(C["EC_TAG_CHAT_MSG_ID"], challenge["id"])])
+                    assert op == C["EC_OP_CHAT_SESSIONS"]
+                    fields = tags[C["EC_TAG_CHAT_SESSION"]][1]
+                    assert C["EC_TAG_CHAT_MESSAGE"] not in fields
+                    assert fields[C["EC_TAG_CHAT_CAPTCHA_ID"]][0] == challenge["id"]
+                    encoded = fields[C["EC_TAG_CHAT_CAPTCHA_IMAGE"]][0].rstrip(b"\0")
+                    assert base64.b64decode(encoded, validate=True) == bmp
                     # Duplicate challenges are rejected until this one is answered.
                     send_packet(sock, 0xC5, 0xA5, b"\x00" + bmp)
                     time.sleep(1.2)
@@ -197,6 +215,11 @@ StaticRoot={Path(__file__).resolve().parents[3] / 'src/webapi/static'}
                     request(f"/chats/{address}/messages", {"text": answer, "captcha_id": challenge["id"]})
                     next_message(answer)
                     rejected_answer(challenge["id"])
+                    _, tags = ec.call(C["EC_OP_GET_CHAT_SESSIONS"],
+                        [integer(C["EC_TAG_CHAT_MSG_ID"], challenge["id"])])
+                    fields = tags[C["EC_TAG_CHAT_SESSION"]][1]
+                    assert fields[C["EC_TAG_CHAT_CAPTCHA_ID"]][0] == 0
+                    assert C["EC_TAG_CHAT_CAPTCHA_IMAGE"] not in fields
                     # A second ordinary message while the result is delayed must neither
                     # assert nor discard the pending result.
                     extra = 0
@@ -297,6 +320,8 @@ StaticRoot={Path(__file__).resolve().parents[3] / 'src/webapi/static'}
             print(file.name + ":\n" + file.read_text()[-6000:])
         raise
     finally:
+        if ec is not None:
+            ec.sock.close()
         if stream is not None:
             stream.close()
         for process in reversed(processes):

@@ -162,6 +162,8 @@ bool CChatSessionStore::AddCaptchaChallenge(const CChatPeer &peer, const unsigne
 	auto &message = session.messages.back();
 	message.kind = CAPTCHA_CHALLENGE;
 	message.captcha_image = wxBase64Encode(data, size);
+	session.captcha_id = message.id;
+	session.captcha_image = message.captcha_image;
 	return true;
 }
 
@@ -180,6 +182,8 @@ bool CChatSessionStore::AddCaptchaResult(const CChatPeer &peer, uint8 status)
 	auto &message = session.messages.back();
 	message.kind = CAPTCHA_RESULT;
 	message.captcha_status = status;
+	session.captcha_id = 0;
+	session.captcha_image.clear();
 	return true;
 }
 
@@ -317,6 +321,10 @@ bool CChatSessionStore::Promote(const CChatPeer &peer, const CMD4Hash &hash)
 		} else {
 			survivor->messages.insert(
 				survivor->messages.end(), it->messages.begin(), it->messages.end());
+			if (it->captcha_id > survivor->captcha_id) {
+				survivor->captcha_id = it->captcha_id;
+				survivor->captcha_image = it->captcha_image;
+			}
 			if (survivor->name.IsEmpty()) {
 				survivor->name = it->name;
 			}

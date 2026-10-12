@@ -933,6 +933,9 @@ void CamuleRemoteGuiApp::FinishReconnect(int result)
 		const uint64 sessionId = m_connect ? m_connect->GetServerSessionId() : 0;
 		const bool sameSession = sessionId != 0 && sessionId == m_ecSessionId;
 		m_ecSessionId = sessionId;
+		// A queued answer may have been lost with the EC connection. Allow a
+		// still-pending challenge to be offered again without replaying history.
+		m_chatmsg_handler.ResetCaptchaPresentation();
 
 		if (!sameSession) {
 			AddLogLineNS(_("The remote core was restarted; reloading."));
@@ -1304,6 +1307,7 @@ void CChatMsgHandlerRem::ResetForNewSession()
 	}
 	m_cursor = 0;
 	m_sessions.clear();
+	m_presentedCaptchas.clear();
 }
 
 void CChatMsgHandlerRem::HandlePacket(const CECPacket *packet)
@@ -1324,6 +1328,7 @@ void CChatMsgHandlerRem::HandlePacket(const CECPacket *packet)
 	// Not a std::set: CChatPeer has no operator<, and the bounded session count (the
 	// core caps it, see CChatSessionStore::MAX_SESSIONS) makes a linear scan cheap enough.
 	std::vector<CChatPeer> present;
+	std::set<uint32> presented;
 	// Provisional peers this poll rekeyed into an identified one: excluded from the
 	// close-diff below, or the tab RekeySession just relabelled would be closed again.
 	std::vector<CChatPeer> rekeyedAway;
@@ -1386,25 +1391,34 @@ void CChatMsgHandlerRem::HandlePacket(const CECPacket *packet)
 			chatwnd->AppendStoredMessage(
 				peer, name, msgTag.GetStringData(), outgoing, /*blink=*/!backfill);
 		}
-		// History is not pending state: only the daemon's live challenge id may
-		// open a dialog, even if unrelated messages followed it in this poll.
-		const CECTag *kind =
-			lastMessage ? lastMessage->GetTagByName(EC_TAG_CHAT_MESSAGE_KIND) : nullptr;
-		if (kind && kind->GetInt() == 1 && !CCaptchaDialog::Exists(theApp->amuledlg, peer, pending)) {
-			if (const CECTag *image = lastMessage->GetTagByName(EC_TAG_CHAT_CAPTCHA_IMAGE)) {
-				const wxString encoded = image->GetStringData();
-				if (encoded.size() < 5500) {
-					const wxMemoryBuffer bmp = wxBase64Decode(encoded);
-					if (IsValidChatCaptcha(
-						    static_cast<const unsigned char *>(bmp.GetData()),
-						    bmp.GetDataLen())) {
-						wxMemoryInputStream stream(bmp.GetData(), bmp.GetDataLen());
-						wxImage bitmap(stream, wxBITMAP_TYPE_BMP);
-						if (bitmap.IsOk()) {
-							auto *dialog = new CCaptchaDialog(
-								theApp->amuledlg, bitmap, peer, pending);
-							dialog->Show();
-						}
+		// Repeated live snapshots must not reopen a dialog the user canceled.
+		// Retain only ids which are still pending, bounding this set by sessions.
+		if (pending && (m_presentedCaptchas.count(pending) ||
+				       CCaptchaDialog::Exists(theApp->amuledlg, peer, pending))) {
+			presented.insert(pending);
+			continue;
+		}
+		const CECTag *image = pending ? sessionTag.GetTagByName(EC_TAG_CHAT_CAPTCHA_IMAGE) : nullptr;
+		// Compatibility with a daemon that only included images in the transcript.
+		if (!image && lastMessage) {
+			const CECTag *kind = lastMessage->GetTagByName(EC_TAG_CHAT_MESSAGE_KIND);
+			if (kind && kind->GetInt() == 1) {
+				image = lastMessage->GetTagByName(EC_TAG_CHAT_CAPTCHA_IMAGE);
+			}
+		}
+		if (image) {
+			const wxString encoded = image->GetStringData();
+			if (encoded.size() < 5500) {
+				const wxMemoryBuffer bmp = wxBase64Decode(encoded);
+				if (IsValidChatCaptcha(static_cast<const unsigned char *>(bmp.GetData()),
+					    bmp.GetDataLen())) {
+					wxMemoryInputStream stream(bmp.GetData(), bmp.GetDataLen());
+					wxImage bitmap(stream, wxBITMAP_TYPE_BMP);
+					if (bitmap.IsOk()) {
+						auto *dialog = new CCaptchaDialog(
+							theApp->amuledlg, bitmap, peer, pending);
+						dialog->Show();
+						presented.insert(pending);
 					}
 				}
 			}
@@ -1426,6 +1440,7 @@ void CChatMsgHandlerRem::HandlePacket(const CECPacket *packet)
 		}
 	}
 	m_sessions = present;
+	m_presentedCaptchas = std::move(presented);
 
 	if (const CECTag *cursorTag = packet->GetTagByName(EC_TAG_CHAT_MSG_ID)) {
 		// Advance even when nothing came back, so evicted ids are not asked

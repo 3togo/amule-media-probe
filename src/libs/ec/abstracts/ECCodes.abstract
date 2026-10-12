@@ -529,6 +529,8 @@ EC_TAG_CHAT                               0x0900
 ## Optional children of EC_TAG_CHAT_MESSAGE. Kind: 0 text (default), 1 CAPTCHA
 ## challenge, 2 CAPTCHA result. Image is a base64-encoded validated BMP string.
 ## Status: 0 accepted, 1 failed/retry allowed, 2 failed/no attempts remain.
+## EC_TAG_CHAT_CAPTCHA_IMAGE is also a session child while its challenge is
+## pending, independent of the requested transcript cursor.
 	EC_TAG_CHAT_MESSAGE_KIND                  0x0909
 	EC_TAG_CHAT_CAPTCHA_IMAGE                 0x090A
 	EC_TAG_CHAT_CAPTCHA_STATUS                0x090B

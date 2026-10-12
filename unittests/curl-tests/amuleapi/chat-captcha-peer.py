@@ -76,6 +76,10 @@ def run(build, work, daemon_override=None, api_override=None):
     daemon_dir, api_dir = work / "daemon", work / "api"
     daemon_dir.mkdir()
     api_dir.mkdir()
+    # Configs contain credentials and amuleapi enforces owner-only permissions.
+    # Set the mode at creation so permissive CI umasks cannot expose them.
+    (daemon_dir / "amule.conf").touch(mode=0o600, exist_ok=False)
+    (api_dir / "amuleapi.conf").touch(mode=0o600, exist_ok=False)
     (daemon_dir / "amule.conf").write_text(f"""[eMule]
 Nick=CAPTCHA test
 Port={tcp_port}

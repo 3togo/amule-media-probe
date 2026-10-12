@@ -48,8 +48,10 @@ src/IP2Country.cpp
 src/IPFilter.cpp
 src/KadContactHistogram.h
 src/KadDlg.cpp
+src/KadLookupView.h
 src/kademlia/kademlia/SearchManager.cpp
 src/kademlia/routing/RoutingZone.cpp
+src/kademlia/utils/LookupDiagnostics.cpp
 src/KnownFile.cpp
 src/KnownFileList.cpp
 src/LanguageList.cpp

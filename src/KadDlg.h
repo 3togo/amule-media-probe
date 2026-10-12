@@ -26,6 +26,7 @@
 #ifndef KADDLG_H
 #define KADDLG_H
 
+#include "KadLookupView.h"
 #include <wx/timer.h>
 #include <wx/panel.h> // Needed for wxPanel
 
@@ -60,6 +61,11 @@ private:
 	COScopeCtrl *m_kad_scope;
 	CKadContactHistogram *m_contactHistogram = nullptr;
 	wxTimer m_distributionTimer;
+	wxButton *m_lookupButton = nullptr;
+	wxWeakRef<CKadLookupView> m_lookupView;
+#ifdef CLIENT_GUI
+	std::shared_ptr<CKadLookupRequestState> m_lookupRequest;
+#endif
 
 	// Event handlers
 	void OnBnClickedBootstrapClient(wxCommandEvent &evt);

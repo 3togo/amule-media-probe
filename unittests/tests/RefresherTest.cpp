@@ -3776,3 +3776,40 @@ TEST(Refresher, SearchProgressUnionKeepsExplicitAndMissingKadActivityDistinct)
 	ASSERT_TRUE(!activity[2]);
 	ASSERT_TRUE(activity.find(3) == activity.end());
 }
+
+TEST(Refresher, ChatCaptchaDecodesAndSurvivesIncrementalPolling)
+{
+	std::vector<ChatSessionSnapshot> cache;
+	std::uint32_t cursor = 0;
+	std::vector<ChatSessionSnapshot> fresh;
+	std::vector<ChatSessionClosure> closed;
+	CECPacket resp(EC_OP_CHAT_SESSIONS);
+	resp.AddTag(CECTag(EC_TAG_CHAT_MSG_ID, static_cast<uint32_t>(2)));
+	CECTag session = MakeChatSession(kPeerA, "alice");
+	CECTag challenge(EC_TAG_CHAT_MESSAGE, wxString("solve"));
+	challenge.AddTag(CECTag(EC_TAG_CHAT_MSG_ID, static_cast<uint32_t>(1)));
+	challenge.AddTag(CECTag(EC_TAG_CHAT_MESSAGE_KIND, static_cast<uint8_t>(1)));
+	challenge.AddTag(CECTag(EC_TAG_CHAT_CAPTCHA_IMAGE, wxString("Qk0=")));
+	session.AddTag(challenge);
+	CECTag result(EC_TAG_CHAT_MESSAGE, wxString("failed"));
+	result.AddTag(CECTag(EC_TAG_CHAT_MSG_ID, static_cast<uint32_t>(2)));
+	result.AddTag(CECTag(EC_TAG_CHAT_MESSAGE_KIND, static_cast<uint8_t>(2)));
+	result.AddTag(CECTag(EC_TAG_CHAT_CAPTCHA_STATUS, static_cast<uint8_t>(1)));
+	session.AddTag(result);
+	resp.AddTag(session);
+	ApplyChatSessions(&resp, cache, cursor, fresh, closed);
+	ASSERT_EQUALS(static_cast<size_t>(1), cache.size());
+	ASSERT_EQUALS(static_cast<uint8_t>(1), cache[0].messages[0].kind);
+	ASSERT_EQUALS(std::string("Qk0="), cache[0].messages[0].captcha_image);
+	ASSERT_EQUALS(static_cast<uint8_t>(2), fresh[0].messages[1].kind);
+	ASSERT_EQUALS(static_cast<uint8_t>(1), fresh[0].messages[1].captcha_status);
+	CECPacket next(EC_OP_CHAT_SESSIONS);
+	next.AddTag(CECTag(EC_TAG_CHAT_MSG_ID, static_cast<uint32_t>(2)));
+	next.AddTag(MakeChatSession(kPeerA, "alice"));
+	fresh.clear();
+	closed.clear();
+	ApplyChatSessions(&next, cache, cursor, fresh, closed);
+	ASSERT_TRUE(fresh.empty());
+	ASSERT_EQUALS(static_cast<size_t>(2), cache[0].messages.size());
+	ASSERT_EQUALS(std::string("Qk0="), cache[0].messages[0].captcha_image);
+}

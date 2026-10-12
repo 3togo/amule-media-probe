@@ -508,6 +508,9 @@ struct ChatMessageSnapshot
 	bool outgoing = false;
 	std::uint32_t timestamp = 0; //!< unix seconds, stamped by the core
 	std::string text;
+	std::uint8_t kind = 0;
+	std::string captcha_image; //!< base64 BMP
+	std::uint8_t captcha_status = 0;
 };
 
 struct ChatSessionSnapshot

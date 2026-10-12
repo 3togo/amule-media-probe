@@ -2423,6 +2423,10 @@ msgid "Empty chat message"
 msgstr ""
 
 #: src/ExternalConn.cpp
+msgid "CAPTCHA challenge is no longer pending"
+msgstr ""
+
+#: src/ExternalConn.cpp
 msgid "Unknown chat target"
 msgstr ""
 

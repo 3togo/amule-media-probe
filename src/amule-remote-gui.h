@@ -821,6 +821,7 @@ class CChatMsgHandlerRem : public CECPacketHandlerBase
 {
 public:
 	virtual void HandlePacket(const CECPacket *);
+	void ResetForNewSession();
 
 	//! Resume cursor for the next poll; 0 until the first reply lands.
 	uint32 Cursor() const { return m_cursor; }

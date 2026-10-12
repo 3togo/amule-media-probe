@@ -23,6 +23,9 @@
 //
 
 #include "ChatSessionStore.h"
+#include "ChatCaptcha.h"
+
+#include <wx/base64.h>
 
 #include "OtherFunctions.h" // GUI_ID: legacy EC projection only
 
@@ -146,6 +149,38 @@ uint32 CChatSessionStore::AddOutgoing(const CChatPeer &peer,
 		return 0;
 	}
 	return Append(Touch(peer, wxEmptyString, address, port), DIR_OUT, text, legacyRoute);
+}
+
+bool CChatSessionStore::AddCaptchaChallenge(const CChatPeer &peer, const unsigned char *data, size_t size)
+{
+	const Session *existing = Find(peer);
+	if (!existing || !IsValidChatCaptcha(data, size)) {
+		return false;
+	}
+	Session &session = Touch(peer, existing->name, existing->address, existing->port);
+	Append(session, DIR_IN, "*** Solve the CAPTCHA and send its text as a message.");
+	auto &message = session.messages.back();
+	message.kind = CAPTCHA_CHALLENGE;
+	message.captcha_image = wxBase64Encode(data, size);
+	return true;
+}
+
+bool CChatSessionStore::AddCaptchaResult(const CChatPeer &peer, uint8 status)
+{
+	const Session *existing = Find(peer);
+	if (!existing || status > 2) {
+		return false;
+	}
+	Session &session = Touch(peer, existing->name, existing->address, existing->port);
+	Append(session,
+		DIR_IN,
+		status == 0 ? "*** CAPTCHA passed; your message was delivered."
+			    : (status == 1 ? "*** CAPTCHA failed; send another message to try again."
+					   : "*** CAPTCHA failed; no attempts remain."));
+	auto &message = session.messages.back();
+	message.kind = CAPTCHA_RESULT;
+	message.captcha_status = status;
+	return true;
 }
 
 bool CChatSessionStore::CloseSession(const CChatPeer &peer)

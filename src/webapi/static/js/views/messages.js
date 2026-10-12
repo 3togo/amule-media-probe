@@ -261,11 +261,15 @@ function ChatLog({ peer, peerName, myNick }) {
   const boxRef = useRef(null);
   const stickRef = useRef(true);
 
+  const scrollToBottom = () => {
+    const box = boxRef.current;
+    if (box && stickRef.current) box.scrollTop = box.scrollHeight;
+  };
+
   // Key on the array, not its length: at HISTORY_LIMIT each new message evicts
   // one, so a length-keyed effect would stop scrolling to the bottom.
   useEffect(() => {
-    const box = boxRef.current;
-    if (box && stickRef.current) box.scrollTop = box.scrollHeight;
+    scrollToBottom();
   }, [messages, peer]);
 
   const onScroll = (e) => {
@@ -280,7 +284,14 @@ function ChatLog({ peer, peerName, myNick }) {
           <span class="chat-time">[${hhmmss(m.sent_at)}]</span>
           <span class=${"chat-nick " + m.direction}>
             ${m.direction === "out" ? (myNick || t("messages_me")) : peerName}
-          </span>${": "}<span class="chat-text">${m.text}</span>
+          </span>${": "}<span class="chat-text">${m.type === "captcha_challenge"
+            ? t("messages_captcha_challenge")
+            : m.type === "captcha_result"
+              ? t(["messages_captcha_passed", "messages_captcha_retry", "messages_captcha_exhausted"][m.captcha_status])
+              : m.text}</span>
+          ${m.type === "captcha_challenge" && m.captcha_image ? html`
+            <img class="chat-captcha" src=${"data:image/bmp;base64," + m.captcha_image}
+                 alt=${t("messages_captcha_image")} onLoad=${scrollToBottom} />` : null}
         </div>`)}
     </div>`;
 }

@@ -42,6 +42,11 @@
 
 #include <include/common/EventIDs.h>
 
+#include "ChatCaptcha.h"
+#include "CaptchaDialog.h"
+#include <wx/base64.h>
+#include <wx/mstream.h>
+
 #include "amule.h"                  // Interface declarations.
 #include "ProtocolHandlerManager.h" // Needed for ProtocolHandler_QueueSchemeLink
 #include "CamuleArtProvider.h"      // Needed for wxArtProvider::Push() in OnInit
@@ -931,6 +936,7 @@ void CamuleRemoteGuiApp::FinishReconnect(int result)
 
 		if (!sameSession) {
 			AddLogLineNS(_("The remote core was restarted; reloading."));
+			m_chatmsg_handler.ResetForNewSession();
 			if (knownfiles) {
 				knownfiles->ResetForNewDaemonSession();
 			}
@@ -1286,6 +1292,20 @@ void CServerInfoHandlerRem::HandlePacket(const CECPacket *packet)
 	}
 }
 
+void CChatMsgHandlerRem::ResetForNewSession()
+{
+	// Transcript ids and challenge ids belong to one daemon process. Replaying
+	// a new process into old tabs would duplicate rows or pair an old image
+	// with a reused challenge id.
+	if (theApp->amuledlg && theApp->amuledlg->m_chatwnd) {
+		for (const CChatPeer &peer : m_sessions) {
+			theApp->amuledlg->m_chatwnd->EndSessionFromCore(peer);
+		}
+	}
+	m_cursor = 0;
+	m_sessions.clear();
+}
+
 void CChatMsgHandlerRem::HandlePacket(const CECPacket *packet)
 {
 	// EC_OP_CHAT_SESSIONS: a top-level EC_TAG_CHAT_MSG_ID carrying the store's current
@@ -1349,14 +1369,45 @@ void CChatMsgHandlerRem::HandlePacket(const CECPacket *packet)
 		// appearing on its own cannot steal the selection.
 		chatwnd->StartSessionByID(peer, name);
 
+		const CECTag *pendingTag = sessionTag.GetTagByName(EC_TAG_CHAT_CAPTCHA_ID);
+		const uint32 pending = pendingTag ? static_cast<uint32>(pendingTag->GetInt()) : 0;
+		CCaptchaDialog::CloseForPeer(theApp->amuledlg, peer, pending);
+		const CECTag *lastMessage = nullptr;
 		for (const CECTag &msgTag : sessionTag) {
 			if (msgTag.GetTagName() != EC_TAG_CHAT_MESSAGE) {
 				continue;
+			}
+			const CECTag *idTag = msgTag.GetTagByName(EC_TAG_CHAT_MSG_ID);
+			if (pending && idTag && idTag->GetInt() == pending) {
+				lastMessage = &msgTag;
 			}
 			const CECTag *dirTag = msgTag.GetTagByName(EC_TAG_CHAT_DIRECTION);
 			const bool outgoing = dirTag && dirTag->GetInt() != 0;
 			chatwnd->AppendStoredMessage(
 				peer, name, msgTag.GetStringData(), outgoing, /*blink=*/!backfill);
+		}
+		// History is not pending state: only the daemon's live challenge id may
+		// open a dialog, even if unrelated messages followed it in this poll.
+		const CECTag *kind =
+			lastMessage ? lastMessage->GetTagByName(EC_TAG_CHAT_MESSAGE_KIND) : nullptr;
+		if (kind && kind->GetInt() == 1 && !CCaptchaDialog::Exists(theApp->amuledlg, peer, pending)) {
+			if (const CECTag *image = lastMessage->GetTagByName(EC_TAG_CHAT_CAPTCHA_IMAGE)) {
+				const wxString encoded = image->GetStringData();
+				if (encoded.size() < 5500) {
+					const wxMemoryBuffer bmp = wxBase64Decode(encoded);
+					if (IsValidChatCaptcha(
+						    static_cast<const unsigned char *>(bmp.GetData()),
+						    bmp.GetDataLen())) {
+						wxMemoryInputStream stream(bmp.GetData(), bmp.GetDataLen());
+						wxImage bitmap(stream, wxBITMAP_TYPE_BMP);
+						if (bitmap.IsOk()) {
+							auto *dialog = new CCaptchaDialog(
+								theApp->amuledlg, bitmap, peer, pending);
+							dialog->Show();
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -1370,6 +1421,7 @@ void CChatMsgHandlerRem::HandlePacket(const CECPacket *packet)
 		const bool wasRekeyed =
 			std::find(rekeyedAway.begin(), rekeyedAway.end(), peer) != rekeyedAway.end();
 		if (!stillPresent && !wasRekeyed) {
+			CCaptchaDialog::CloseForPeer(theApp->amuledlg, peer);
 			chatwnd->EndSessionFromCore(peer);
 		}
 	}

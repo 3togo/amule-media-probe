@@ -1892,6 +1892,26 @@ void ApplyChatSessions(const CECPacket *resp,
 				msg.outgoing = dirTag->GetInt() != 0;
 			if (const CECTag *tsTag = m->GetTagByName(EC_TAG_CHAT_TIMESTAMP))
 				msg.timestamp = static_cast<std::uint32_t>(tsTag->GetInt());
+			if (const CECTag *kindTag = m->GetTagByName(EC_TAG_CHAT_MESSAGE_KIND)) {
+				const auto kind = kindTag->GetInt();
+				if (kind == 1) {
+					if (const CECTag *image =
+							m->GetTagByName(EC_TAG_CHAT_CAPTCHA_IMAGE)) {
+						msg.kind = 1;
+						msg.captcha_image =
+							std::string(image->GetStringData().utf8_str());
+					}
+				} else if (kind == 2) {
+					if (const CECTag *status =
+							m->GetTagByName(EC_TAG_CHAT_CAPTCHA_STATUS)) {
+						if (status->GetInt() <= 2) {
+							msg.kind = 2;
+							msg.captcha_status =
+								static_cast<std::uint8_t>(status->GetInt());
+						}
+					}
+				}
+			}
 			session.messages.push_back(msg);
 			arrivals.messages.push_back(msg);
 		}

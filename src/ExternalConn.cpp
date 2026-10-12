@@ -1615,6 +1615,7 @@ CECTag EncodeChatSession(
 		// unroutable address read as online.
 		tag.AddTag(CECTag(EC_TAG_CLIENT_CONNECTED, client->IsConnected()));
 	}
+	tag.AddTag(CECTag(EC_TAG_CHAT_CAPTCHA_ID, client ? client->GetPendingChatCaptchaId() : 0));
 	if (const CFriend *f = theApp->friendlist->FindFriend(session.peer.Hash(), 0, 0)) {
 		tag.AddTag(CECTag(EC_TAG_FRIEND, f->ECID()));
 	}
@@ -1627,6 +1628,14 @@ CECTag EncodeChatSession(
 		msgTag.AddTag(CECTag(EC_TAG_CHAT_MSG_ID, msg.id));
 		msgTag.AddTag(CECTag(EC_TAG_CHAT_DIRECTION, msg.direction));
 		msgTag.AddTag(CECTag(EC_TAG_CHAT_TIMESTAMP, msg.timestamp));
+		if (msg.kind != CChatSessionStore::TEXT) {
+			msgTag.AddTag(CECTag(EC_TAG_CHAT_MESSAGE_KIND, msg.kind));
+			if (msg.kind == CChatSessionStore::CAPTCHA_CHALLENGE) {
+				msgTag.AddTag(CECTag(EC_TAG_CHAT_CAPTCHA_IMAGE, msg.captcha_image));
+			} else if (msg.kind == CChatSessionStore::CAPTCHA_RESULT) {
+				msgTag.AddTag(CECTag(EC_TAG_CHAT_CAPTCHA_STATUS, msg.captcha_status));
+			}
+		}
 		tag.AddTag(msgTag);
 	}
 	return tag;
@@ -4292,7 +4301,21 @@ CECPacket *CECServerSocket::ProcessRequest2(const CECPacket *request)
 			response->AddTag(CECTag(EC_TAG_STRING, wxTRANSLATE("Empty chat message")));
 			break;
 		}
-		const CChatPeer peer = ResolveChatSendTarget(request);
+		const CECTag *captcha = request->GetTagByName(EC_TAG_CHAT_CAPTCHA_ID);
+		// An expired dialog must never open a new provisional conversation.
+		const auto *captchaSession = captcha ? ResolveChatSessionTarget(request) : nullptr;
+		const CChatPeer peer = captcha ? (captchaSession ? captchaSession->peer : CChatPeer())
+					       : ResolveChatSendTarget(request);
+		if (captcha) {
+			const auto *client = theApp->clientlist->FindChatClient(peer);
+			if (!captcha->GetInt() || !client ||
+				client->GetPendingChatCaptchaId() != captcha->GetInt() || !captchaSession) {
+				response = new CECPacket(EC_OP_FAILED);
+				response->AddTag(CECTag(EC_TAG_STRING,
+					wxTRANSLATE("CAPTCHA challenge is no longer pending")));
+				break;
+			}
+		}
 		if (peer.IsEmpty()) {
 			response = new CECPacket(EC_OP_FAILED);
 			response->AddTag(CECTag(EC_TAG_STRING, wxTRANSLATE("Unknown chat target")));

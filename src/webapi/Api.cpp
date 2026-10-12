@@ -5675,6 +5675,17 @@ void WriteChatMessageObject(CJsonWriter &w, const webapi::ChatMessageSnapshot &m
 	w.ValueString(wxString::FromAscii(m.outgoing ? "out" : "in"));
 	w.Key("text");
 	w.ValueString(wxString::FromUTF8(m.text.c_str()));
+	if (m.kind == 1) {
+		w.Key("type");
+		w.ValueString("captcha_challenge");
+		w.Key("captcha_image");
+		w.ValueString(wxString::FromUTF8(m.captcha_image.c_str()));
+	} else if (m.kind == 2) {
+		w.Key("type");
+		w.ValueString("captcha_result");
+		w.Key("captcha_status");
+		w.ValueInt(m.captcha_status);
+	}
 	// null, not 0, when the core has not stamped it: the send response builds
 	// its echo through here before any timestamp exists.
 	WriteIntOrNull(w, "sent_at", m.timestamp != 0, static_cast<int64_t>(m.timestamp));
@@ -6004,7 +6015,20 @@ CHttpServer::Response CApiDispatcher::SendChatMessageTo(
 		return ErrorResponse(400, "bad_request", "`text` exceeds 1024 bytes");
 	}
 
+	std::uint32_t captcha_id = 0;
+	if (const auto field = obj.find("captcha_id"); field != obj.end()) {
+		if (!field->second.is<double>() || field->second.get<double>() < 1 ||
+			field->second.get<double>() > 4294967295.0 ||
+			std::floor(field->second.get<double>()) != field->second.get<double>()) {
+			return ErrorResponse(
+				400, "bad_request", "`captcha_id` must be a positive uint32 integer");
+		}
+		captcha_id = static_cast<std::uint32_t>(field->second.get<double>());
+	}
+
 	std::unique_ptr<CECPacket> ec_req(new CECPacket(EC_OP_CHAT_SEND));
+	if (captcha_id)
+		ec_req->AddTag(CECTag(EC_TAG_CHAT_CAPTCHA_ID, captcha_id));
 	ec_req->AddTag(CECTag(EC_TAG_CHAT, wxString::FromUTF8(text.c_str())));
 	ec_req->AddTag(target);
 	if (route_hint != 0)
@@ -6017,7 +6041,9 @@ CHttpServer::Response CApiDispatcher::SendChatMessageTo(
 	std::string ec_err_msg;
 	if (IsEcFailedResponse(ec_resp, ec_err_msg)) {
 		delete ec_resp;
-		return ErrorResponse(404, "not_found", ec_err_msg.c_str());
+		return ErrorResponse(captcha_id ? 409 : 404,
+			captcha_id ? "captcha_expired" : "not_found",
+			ec_err_msg.c_str());
 	}
 	std::uint64_t gui_id = 0;
 	std::uint32_t msg_id = 0;

@@ -39,20 +39,26 @@ static void Check(bool value, const char *message)
 		throw std::runtime_error(message);
 	}
 }
+static CKadLookupReply *StartReply(
+	CKadLookupView *view, const std::shared_ptr<CKadLookupRequestState> &request)
+{
+	Check(request->TryBegin(), "Cannot start idle request");
+	return new CKadLookupReply(view, request);
+}
 static void VerifyLifecycle()
 {
 	auto *frame = new wxFrame(nullptr, wxID_ANY, "Lookup lifecycle test");
 	auto *button = new wxButton(frame, wxID_ANY, "Request");
+	auto request = std::make_shared<CKadLookupRequestState>(button);
+	request->SetSupported(true);
 	auto *view = new CKadLookupView(frame);
 	view->Show();
 	Check(!view->IsModal(), "Diagnostics blocks connection controls");
-	button->Disable();
-	(new CKadLookupReply(view, button))->AbortPendingRequest();
+	(StartReply(view, request))->AbortPendingRequest();
 	Check(button->IsEnabled(), "Abort prevents retry");
 	Check(view->GetSnapshot().Contains("Connection lost"), "Abort leaves stale snapshot");
 	CECPacket unsupported(EC_OP_FAILED);
-	button->Disable();
-	(new CKadLookupReply(view, button))->HandlePacket(&unsupported);
+	(StartReply(view, request))->HandlePacket(&unsupported);
 	Check(button->IsEnabled(), "Unsupported core prevents retry");
 	Check(view->GetSnapshot().Contains("does not support"), "Unsupported core is not explained");
 	CECPacket valid(EC_OP_GET_KAD_LOOKUPS);
@@ -63,7 +69,7 @@ static void VerifyLifecycle()
 	snapshot.trace.Query({ 0x01020304, 4665 }, id, 100, 8, distance);
 	snapshot.trace.Referral({ 0x02030405, 4665 }, { 0x01020304, 4665 }, 120, true, distance);
 	Kademlia::AddLookupDiagnosticsTags(valid, Kademlia::MakeLookupReports({ snapshot }, {}, 4000));
-	(new CKadLookupReply(view, button))->HandlePacket(&valid);
+	(StartReply(view, request))->HandlePacket(&valid);
 	Check(view->GetSnapshot() == Kademlia::FormatLookupDiagnostics(
 					     Kademlia::MakeLookupReports({ snapshot }, {}, 4000)),
 		"Local and remote reports differ");
@@ -75,17 +81,49 @@ static void VerifyLifecycle()
 		"Valid reply missing");
 	CECPacket malformed(EC_OP_GET_KAD_LOOKUPS);
 	malformed.AddTag(CECTag(EC_TAG_KAD_LOOKUP, uint32_t(42)));
-	(new CKadLookupReply(view, button))->HandlePacket(&malformed);
+	(StartReply(view, request))->HandlePacket(&malformed);
 	Check(view->GetSnapshot().Contains("Invalid Kad lookup"), "Malformed reply interpreted as text");
-	auto *closedReply = new CKadLookupReply(view, button);
+	auto *closedReply = StartReply(view, request);
 	delete view; // response may arrive after the parent has destroyed the view
 	closedReply->HandlePacket(&valid);
 	Check(button->IsEnabled(), "Closed view prevents retry");
 	view = new CKadLookupView(frame);
-	auto *parentReply = new CKadLookupReply(view, button);
+	auto *parentReply = StartReply(view, request);
 	delete frame;
+	request.reset();                    // handler owns the remaining state, with a dead weak button
 	parentReply->AbortPendingRequest(); // both weak references must already be invalid
 }
+static void VerifyClosedPendingView()
+{
+	auto *frame = new wxFrame(nullptr, wxID_ANY, "Pending lookup test");
+	auto *button = new wxButton(frame, wxID_ANY, "Request");
+	auto request = std::make_shared<CKadLookupRequestState>(button);
+	request->SetSupported(true);
+	auto *view = new CKadLookupView(frame);
+	auto *first = StartReply(view, request);
+	delete view;
+	// Periodic connection updates use the page's state, even with no snapshot window.
+	request->SetSupported(true);
+	Check(!button->IsEnabled(), "Closing window re-enables outstanding request");
+	view = new CKadLookupView(frame);
+	Check(!request->TryBegin(), "Reopened window allows overlapping request");
+	CECPacket valid(EC_OP_GET_KAD_LOOKUPS);
+	first->HandlePacket(&valid);
+	Check(button->IsEnabled(), "Closed window prevents completion");
+	auto *second = StartReply(view, request);
+	request->SetSupported(true);
+	Check(!button->IsEnabled(), "Status update enables new pending request");
+	Check(!request->TryBegin(), "Duplicate click bypasses pending guard");
+	// Disconnect or an older core must keep the button disabled after abort.
+	request->SetSupported(false);
+	second->AbortPendingRequest();
+	Check(!button->IsEnabled(), "Abort enables an unsupported connection");
+	request->SetSupported(true);
+	Check(button->IsEnabled(), "Reconnect cannot retry diagnostics");
+	StartReply(view, request)->HandlePacket(&valid);
+	delete frame;
+}
+
 int main(int argc, char **argv)
 {
 	if (!wxEntryStart(argc, argv)) {
@@ -97,6 +135,7 @@ int main(int argc, char **argv)
 	} else {
 		try {
 			VerifyLifecycle();
+			VerifyClosedPendingView();
 		} catch (const std::exception &e) {
 			std::cerr << e.what() << '\n';
 			result = 1;

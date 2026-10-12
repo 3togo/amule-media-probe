@@ -56,6 +56,9 @@ private:
 	COScopeCtrl *m_kad_scope;
 	wxButton *m_lookupButton = nullptr;
 	wxWeakRef<CKadLookupView> m_lookupView;
+#ifdef CLIENT_GUI
+	std::shared_ptr<CKadLookupRequestState> m_lookupRequest;
+#endif
 
 	// Event handlers
 	void OnBnClickedBootstrapClient(wxCommandEvent &evt);

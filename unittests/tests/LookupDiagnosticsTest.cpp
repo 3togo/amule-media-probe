@@ -26,6 +26,7 @@
 #include <kademlia/utils/LookupDiagnosticsEC.h>
 #include <kademlia/kademlia/Search.h>
 #include "libs/ec/cpp/ECPacket.h"
+#include <limits>
 using namespace muleunit;
 using namespace Kademlia;
 DECLARE_SIMPLE(LookupDiagnostics)
@@ -156,4 +157,64 @@ TEST(LookupDiagnostics, MapsEveryCoreSearchType)
 		ASSERT_TRUE(LookupTypeFromSearch(type.first) == type.second);
 	}
 	ASSERT_TRUE(LookupTypeFromSearch(999) == LookupType::Unknown);
+}
+
+TEST(LookupDiagnostics, RejectsOutOfRangeWireIntegers)
+{
+	LookupReport report;
+	report.target = "target";
+	report.peers.push_back({ { 0x01020304, 4665 } });
+	report.referrals.push_back({ { 0x01020304, 4665 }, { 0x02030405, 4665 } });
+	struct Boundary
+	{
+		ec_tagname_t parent;
+		ec_tagname_t field;
+		uint64_t maximum;
+	};
+	const uint64_t max32 = std::numeric_limits<uint32_t>::max();
+	const Boundary boundaries[] = { { EC_TAG_KAD_LOOKUP, EC_TAG_KAD_LOOKUP_TYPE, max32 },
+		{ EC_TAG_KAD_LOOKUP, EC_TAG_KAD_LOOKUP_ACTIVE, 1 },
+		{ EC_TAG_KAD_LOOKUP, EC_TAG_KAD_LOOKUP_OVERDUE, max32 },
+		{ EC_TAG_KAD_LOOKUP, EC_TAG_KAD_LOOKUP_OMITTED_PEERS, max32 },
+		{ EC_TAG_KAD_LOOKUP, EC_TAG_KAD_LOOKUP_EVICTED_REFERRALS, max32 },
+		{ EC_TAG_KAD_LOOKUP_PEER, EC_TAG_KAD_LOOKUP_PEER_IP, max32 },
+		{ EC_TAG_KAD_LOOKUP_PEER, EC_TAG_KAD_LOOKUP_PEER_PORT, 65535 },
+		{ EC_TAG_KAD_LOOKUP_PEER, EC_TAG_KAD_LOOKUP_PEER_VERSION, 255 },
+		{ EC_TAG_KAD_LOOKUP_PEER, EC_TAG_KAD_LOOKUP_PEER_REQUESTS, max32 },
+		{ EC_TAG_KAD_LOOKUP_PEER, EC_TAG_KAD_LOOKUP_PEER_REPLIES, max32 },
+		{ EC_TAG_KAD_LOOKUP_PEER, EC_TAG_KAD_LOOKUP_PEER_ITEM_REQUESTS, max32 },
+		{ EC_TAG_KAD_LOOKUP_PEER, EC_TAG_KAD_LOOKUP_PEER_ITEM_REPLIES, max32 },
+		{ EC_TAG_KAD_LOOKUP_PEER, EC_TAG_KAD_LOOKUP_PEER_RESULTS, max32 },
+		{ EC_TAG_KAD_LOOKUP_PEER, EC_TAG_KAD_LOOKUP_PEER_PENDING, 1 },
+		{ EC_TAG_KAD_LOOKUP_REFERRAL, EC_TAG_KAD_LOOKUP_REFERRAL_SOURCE_IP, max32 },
+		{ EC_TAG_KAD_LOOKUP_REFERRAL, EC_TAG_KAD_LOOKUP_REFERRAL_SOURCE_PORT, 65535 },
+		{ EC_TAG_KAD_LOOKUP_REFERRAL, EC_TAG_KAD_LOOKUP_REFERRAL_PEER_IP, max32 },
+		{ EC_TAG_KAD_LOOKUP_REFERRAL, EC_TAG_KAD_LOOKUP_REFERRAL_PEER_PORT, 65535 },
+		{ EC_TAG_KAD_LOOKUP_REFERRAL, EC_TAG_KAD_LOOKUP_REFERRAL_CLOSER, 1 } };
+	for (const auto &boundary : boundaries) {
+		CECPacket packet(EC_OP_GET_KAD_LOOKUPS);
+		AddLookupDiagnosticsTags(packet, { report });
+		auto *lookup = packet.GetTagByName(EC_TAG_KAD_LOOKUP);
+		auto *parent =
+			boundary.parent == EC_TAG_KAD_LOOKUP ? lookup : lookup->GetTagByName(boundary.parent);
+		auto *field = parent->GetTagByName(boundary.field);
+		*field = CECTag(boundary.field, boundary.maximum);
+		LookupReports decoded;
+		ASSERT_TRUE(DecodeLookupDiagnosticsTags(packet, decoded));
+		*field = CECTag(boundary.field, boundary.maximum + 1);
+		ASSERT_FALSE(DecodeLookupDiagnosticsTags(packet, decoded));
+		ASSERT_TRUE(decoded.empty());
+		*field = CECTag(boundary.field, wxString("wrong type"));
+		ASSERT_FALSE(DecodeLookupDiagnosticsTags(packet, decoded));
+		ASSERT_TRUE(decoded.empty());
+	}
+	// RTT and referral offsets remain 64-bit, rather than inheriting the counter bound.
+	report.peers[0].roundTrip = std::numeric_limits<uint64_t>::max();
+	report.referrals[0].elapsed = std::numeric_limits<uint64_t>::max();
+	CECPacket packet(EC_OP_GET_KAD_LOOKUPS);
+	AddLookupDiagnosticsTags(packet, { report });
+	LookupReports decoded;
+	ASSERT_TRUE(DecodeLookupDiagnosticsTags(packet, decoded));
+	ASSERT_EQUALS(report.peers[0].roundTrip, decoded[0].peers[0].roundTrip);
+	ASSERT_EQUALS(report.referrals[0].elapsed, decoded[0].referrals[0].elapsed);
 }

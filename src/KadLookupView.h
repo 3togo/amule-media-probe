@@ -32,7 +32,6 @@
 class CKadLookupView final : public wxDialog
 {
 	wxTextCtrl *m_text;
-	bool m_pending = false;
 
 public:
 	explicit CKadLookupView(wxWindow *parent)
@@ -57,14 +56,13 @@ public:
 		Bind(wxEVT_CLOSE_WINDOW, [this](wxCloseEvent &) { Destroy(); });
 	}
 	void SetSnapshot(const wxString &text) { m_text->ChangeValue(text); }
-	void SetPending(bool pending) { m_pending = pending; }
-	bool IsPending() const { return m_pending; }
 	wxString GetSnapshot() const { return m_text->GetValue(); }
 };
 
 #ifdef CLIENT_GUI
 #include "libs/ec/cpp/RemoteConnect.h"
 #include "kademlia/utils/LookupDiagnosticsEC.h"
+#include <memory>
 
 namespace KadLookupRemote
 {
@@ -81,26 +79,58 @@ inline wxString FormatPacket(const CECPacket &packet)
 }
 } // namespace KadLookupRemote
 
+// Owned by the Kad page and shared with its outstanding reply handler. Closing
+// the snapshot window does not end a request or permit another one.
+class CKadLookupRequestState
+{
+	wxWeakRef<wxButton> m_button;
+	bool m_supported = false;
+	bool m_pending = false;
+	void UpdateButton()
+	{
+		if (m_button) {
+			m_button->Enable(m_supported && !m_pending);
+		}
+	}
+
+public:
+	explicit CKadLookupRequestState(wxButton *button)
+	: m_button(button)
+	{
+	}
+	void SetSupported(bool supported)
+	{
+		m_supported = supported;
+		UpdateButton();
+	}
+	bool TryBegin()
+	{
+		if (!m_supported || m_pending) {
+			return false;
+		}
+		m_pending = true;
+		UpdateButton();
+		return true;
+	}
+	void Complete()
+	{
+		m_pending = false;
+		UpdateButton();
+	}
+};
+
 class CKadLookupReply final : public CECPacketHandlerBase
 {
 	wxWeakRef<CKadLookupView> m_view;
-	wxWeakRef<wxButton> m_button;
+	std::shared_ptr<CKadLookupRequestState> m_request;
 
 public:
-	CKadLookupReply(CKadLookupView *view, wxButton *button)
+	CKadLookupReply(CKadLookupView *view, std::shared_ptr<CKadLookupRequestState> request)
 	: m_view(view)
-	, m_button(button)
+	, m_request(std::move(request))
 	{
 	}
-	~CKadLookupReply() override
-	{
-		if (m_view) {
-			m_view->SetPending(false);
-		}
-		if (m_button) {
-			m_button->Enable();
-		}
-	}
+	~CKadLookupReply() override { m_request->Complete(); }
 	void HandlePacket(const CECPacket *packet) override
 	{
 		if (m_view) {

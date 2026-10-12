@@ -26,6 +26,7 @@
 #include "../../libs/ec/cpp/ECPacket.h"
 #include <algorithm>
 #include <initializer_list>
+#include <limits>
 using namespace Kademlia;
 
 void Kademlia::AddLookupDiagnosticsTags(CECPacket &packet, const LookupReports &reports)
@@ -81,11 +82,17 @@ uint64_t Number(const CECTag &parent, ec_tagname_t name)
 	return tag && tag->IsInt() ? tag->GetInt() : 0;
 }
 
-bool ValidInts(const CECTag &parent, std::initializer_list<ec_tagname_t> names)
+struct IntegerField
 {
-	for (auto name : names) {
-		const auto *tag = parent.GetTagByName(name);
-		if (!tag || !tag->IsInt()) {
+	ec_tagname_t name;
+	uint64_t maximum = std::numeric_limits<uint32_t>::max();
+};
+
+bool ValidInts(const CECTag &parent, std::initializer_list<IntegerField> fields)
+{
+	for (const auto &field : fields) {
+		const auto *tag = parent.GetTagByName(field.name);
+		if (!tag || !tag->IsInt() || tag->GetInt() > field.maximum) {
 			return false;
 		}
 	}
@@ -122,39 +129,45 @@ bool Kademlia::DecodeLookupDiagnosticsTags(const CECPacket &packet, LookupReport
 		const auto *type = lookup.GetTagByName(EC_TAG_KAD_LOOKUP_TYPE);
 		const auto *keywordTag = lookup.GetTagByName(EC_TAG_KAD_LOOKUP_KEYWORD);
 		if (!target || !target->IsString() || !keywordTag || !keywordTag->IsString() || !type ||
-			!type->IsInt() ||
+			!type->IsInt() || type->GetInt() > std::numeric_limits<uint32_t>::max() ||
 			!ValidInts(lookup,
-				{ EC_TAG_KAD_LOOKUP_ACTIVE,
-					EC_TAG_KAD_LOOKUP_OVERDUE,
-					EC_TAG_KAD_LOOKUP_OMITTED_PEERS,
-					EC_TAG_KAD_LOOKUP_EVICTED_REFERRALS })) {
+				{ { EC_TAG_KAD_LOOKUP_ACTIVE, 1 },
+					{ EC_TAG_KAD_LOOKUP_OVERDUE },
+					{ EC_TAG_KAD_LOOKUP_OMITTED_PEERS },
+					{ EC_TAG_KAD_LOOKUP_EVICTED_REFERRALS } })) {
 			return false;
 		}
 		for (const auto &child : lookup) {
 			if (child.GetTagName() == EC_TAG_KAD_LOOKUP_PEER) {
 				if (!ValidInts(child,
-					    { EC_TAG_KAD_LOOKUP_PEER_IP,
-						    EC_TAG_KAD_LOOKUP_PEER_PORT,
-						    EC_TAG_KAD_LOOKUP_PEER_VERSION,
-						    EC_TAG_KAD_LOOKUP_PEER_REQUESTS,
-						    EC_TAG_KAD_LOOKUP_PEER_REPLIES,
-						    EC_TAG_KAD_LOOKUP_PEER_RTT,
-						    EC_TAG_KAD_LOOKUP_PEER_ITEM_REQUESTS,
-						    EC_TAG_KAD_LOOKUP_PEER_ITEM_REPLIES,
-						    EC_TAG_KAD_LOOKUP_PEER_RESULTS,
-						    EC_TAG_KAD_LOOKUP_PEER_PENDING }) ||
+					    { { EC_TAG_KAD_LOOKUP_PEER_IP },
+						    { EC_TAG_KAD_LOOKUP_PEER_PORT,
+							    std::numeric_limits<uint16_t>::max() },
+						    { EC_TAG_KAD_LOOKUP_PEER_VERSION,
+							    std::numeric_limits<uint8_t>::max() },
+						    { EC_TAG_KAD_LOOKUP_PEER_REQUESTS },
+						    { EC_TAG_KAD_LOOKUP_PEER_REPLIES },
+						    { EC_TAG_KAD_LOOKUP_PEER_RTT,
+							    std::numeric_limits<uint64_t>::max() },
+						    { EC_TAG_KAD_LOOKUP_PEER_ITEM_REQUESTS },
+						    { EC_TAG_KAD_LOOKUP_PEER_ITEM_REPLIES },
+						    { EC_TAG_KAD_LOOKUP_PEER_RESULTS },
+						    { EC_TAG_KAD_LOOKUP_PEER_PENDING, 1 } }) ||
 					!ValidID(child, EC_TAG_KAD_LOOKUP_PEER_ID) ||
 					!ValidID(child, EC_TAG_KAD_LOOKUP_PEER_DISTANCE)) {
 					return false;
 				}
 			} else if (child.GetTagName() == EC_TAG_KAD_LOOKUP_REFERRAL &&
 				   (!ValidInts(child,
-					    { EC_TAG_KAD_LOOKUP_REFERRAL_SOURCE_IP,
-						    EC_TAG_KAD_LOOKUP_REFERRAL_SOURCE_PORT,
-						    EC_TAG_KAD_LOOKUP_REFERRAL_PEER_IP,
-						    EC_TAG_KAD_LOOKUP_REFERRAL_PEER_PORT,
-						    EC_TAG_KAD_LOOKUP_REFERRAL_ELAPSED,
-						    EC_TAG_KAD_LOOKUP_REFERRAL_CLOSER }) ||
+					    { { EC_TAG_KAD_LOOKUP_REFERRAL_SOURCE_IP },
+						    { EC_TAG_KAD_LOOKUP_REFERRAL_SOURCE_PORT,
+							    std::numeric_limits<uint16_t>::max() },
+						    { EC_TAG_KAD_LOOKUP_REFERRAL_PEER_IP },
+						    { EC_TAG_KAD_LOOKUP_REFERRAL_PEER_PORT,
+							    std::numeric_limits<uint16_t>::max() },
+						    { EC_TAG_KAD_LOOKUP_REFERRAL_ELAPSED,
+							    std::numeric_limits<uint64_t>::max() },
+						    { EC_TAG_KAD_LOOKUP_REFERRAL_CLOSER, 1 } }) ||
 					   !ValidID(child, EC_TAG_KAD_LOOKUP_REFERRAL_DISTANCE))) {
 				return false;
 			}

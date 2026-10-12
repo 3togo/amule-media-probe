@@ -47,8 +47,8 @@ inline bool CanPublishSource(bool needsBuddy,
 	uint32_t lastBuddyIP,
 	uint32_t nextPublishTime,
 	uint32_t now,
-	uint16_t buddyPort = 0,
-	uint16_t lastBuddyPort = 0)
+	uint16_t buddyPort,
+	uint16_t lastBuddyPort)
 {
 	if (needsBuddy && buddyIP == 0) {
 		return false;

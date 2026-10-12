@@ -1124,6 +1124,19 @@ bool CSocketClientProxy::Connect(amuleIPV4Address &address, bool wait)
 	return ok;
 }
 
+#ifdef ENABLE_IPV6
+bool CSocketClientProxy::ConnectIPv6(const CNetworkAddress &target, uint16 port, bool wait)
+{
+	wxMutexLocker lock(m_socketLocker);
+	// The proxy protocols here carry IPv4 only, so a configured proxy refuses IPv6 instead of
+	// being bypassed.
+	if (GetUseProxy()) {
+		return RefuseConnectIPv6(target, port);
+	}
+	return CLibSocket::ConnectIPv6(target, port, wait);
+}
+#endif
+
 uint32 CSocketClientProxy::Read(void *buffer, wxUint32 nbytes)
 {
 	wxMutexLocker lock(m_socketLocker);
@@ -1147,9 +1160,11 @@ CSocketServerProxy::CSocketServerProxy(
 
 // CDatagramSocketProxy
 
-CDatagramSocketProxy::CDatagramSocketProxy(
-	amuleIPV4Address &address, muleSocketFlags flags, const CProxyData *proxyData)
-: CLibUDPSocket(address, flags)
+CDatagramSocketProxy::CDatagramSocketProxy(amuleIPV4Address &address,
+	muleSocketFlags flags,
+	const CProxyData *proxyData,
+	CMuleUDPSocket *handler)
+: CLibUDPSocket(address, flags, handler)
 , m_proxyTCPSocket(MULE_SOCKET_NOWAIT, proxyData, PROXY_CMD_UDP_ASSOCIATE, this)
 {
 	m_udpSocketOk = false;

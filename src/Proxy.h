@@ -395,6 +395,9 @@ public:
 
 	/* Interface */
 	bool Connect(amuleIPV4Address &address, bool wait);
+#ifdef ENABLE_IPV6
+	bool ConnectIPv6(const CNetworkAddress &target, uint16 port, bool wait);
+#endif
 	uint32 Read(void *buffer, wxUint32 nbytes);
 	uint32 Write(const void *buffer, wxUint32 nbytes);
 
@@ -520,8 +523,9 @@ class CDatagramSocketProxy : public CLibUDPSocket
 public:
 	/* Constructor */
 	CDatagramSocketProxy(amuleIPV4Address &address,
-		muleSocketFlags flags = MULE_SOCKET_NONE,
-		const CProxyData *proxyData = NULL);
+		muleSocketFlags flags,
+		const CProxyData *proxyData,
+		CMuleUDPSocket *handler);
 
 	/* Destructor */
 	~CDatagramSocketProxy();

@@ -48,6 +48,7 @@ def run(binary, populated=False):
             (root / 'nodes.dat').write_bytes(struct.pack('<III', 0, 2, 1) + contact)
         (root / 'amule.conf').write_text(f"""[eMule]
 Nick=regression
+Language=en_US
 Port={peer_port}
 UDPPort={udp_port}
 Address=127.0.0.1

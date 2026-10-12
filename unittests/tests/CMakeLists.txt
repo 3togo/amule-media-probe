@@ -11,7 +11,7 @@ endfunction()
 find_package (Python3 QUIET COMPONENTS Interpreter)
 if (Python3_Interpreter_FOUND)
 	add_test (NAME IntegrationFixtureUnitTest
-		COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/IntegrationFixtureUnitTest.py
+		COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/IntegrationFixtureUnitTest.py -v
 	)
 endif ()
 

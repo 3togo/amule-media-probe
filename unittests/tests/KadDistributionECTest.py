@@ -10,7 +10,7 @@ import socket
 import subprocess
 import sys
 import tempfile
-from AllSearchIntegrationTest import C, connect_daemon, free_port, tag
+from AllSearchIntegrationTest import C, connect_daemon, free_ports, retry_port_collisions, tag
 
 
 def local_peer():
@@ -40,7 +40,7 @@ def run(binary, populated=False):
         return 77
     with tempfile.TemporaryDirectory(prefix='amule-kad-diagnostics-') as directory:
         root = Path(directory)
-        port = free_port()
+        port, peer_port, udp_port = free_ports(3, udp_indices=(2,), peer_index=1)
         if peer:
             ip, udp = peer.getsockname()
             contact = struct.pack('<4IIHHB2IB', 0xA0000000, 0, 0, 1,
@@ -48,8 +48,8 @@ def run(binary, populated=False):
             (root / 'nodes.dat').write_bytes(struct.pack('<III', 0, 2, 1) + contact)
         (root / 'amule.conf').write_text(f"""[eMule]
 Nick=regression
-Port={free_port()}
-UDPPort={free_port()}
+Port={peer_port}
+UDPPort={udp_port}
 Address=127.0.0.1
 ConnectToKad=1
 Autoconnect=0
@@ -73,7 +73,7 @@ ECPassword={hashlib.md5(b'regression').hexdigest()}
         with (root / 'stdout.log').open('w') as log:
             proc = subprocess.Popen([binary, '-c', str(root)], stdout=log, stderr=log, env=env)
             try:
-                ec = connect_daemon(proc, port)
+                ec = connect_daemon(proc, port, root, peer_port, udp_port)
 
                 assert C['EC_TAG_STATS_KAD_DISTRIBUTION'] not in ec.call(C['EC_OP_STAT_REQ'])[1]
 
@@ -102,7 +102,7 @@ ECPassword={hashlib.md5(b'regression').hexdigest()}
                     assert bins[2560] == 1 and verified[2560] == 1, (bins, verified)
                 # A fresh authenticated client must receive the same requested snapshot.
                 ec.sock.close()
-                ec = connect_daemon(proc, port)
+                ec = connect_daemon(proc, port, root, peer_port, udp_port)
                 assert distribution(True) == (bins, verified, subnets)
                 assert C['EC_TAG_STATS_KAD_DISTRIBUTION'] not in ec.call(C['EC_OP_STAT_REQ'])[1]
                 assert ec.call(C['EC_OP_KAD_STOP'])[0] == C['EC_OP_NOOP']
@@ -127,4 +127,5 @@ ECPassword={hashlib.md5(b'regression').hexdigest()}
 
 
 if __name__ == '__main__':
-    sys.exit(run(str(Path(sys.argv[1]).resolve()), '--populated' in sys.argv) or 0)
+    sys.exit(retry_port_collisions(run, str(Path(sys.argv[1]).resolve()),
+                                   '--populated' in sys.argv) or 0)

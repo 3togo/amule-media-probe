@@ -59,6 +59,15 @@ TEST(KadCallbackPolicy, NoRouteNeverStartsAPublish)
 	ASSERT_FALSE(Kademlia::CanPublishSource(true, 0, 0, 0, 1000));
 }
 
+TEST(KadCallbackPolicy, ChangedBuddyPortBypassesPublishTimer)
+{
+	ASSERT_FALSE(Kademlia::CanPublishSource(true, 123, 123, 5000, 1000, 4665, 4665));
+	ASSERT_TRUE(Kademlia::CanPublishSource(true, 123, 123, 5000, 1000, 4675, 4665));
+	ASSERT_FALSE(Kademlia::CanPublishSource(true, 123, 123, 5000, 1000, 4675, 4675));
+	ASSERT_FALSE(Kademlia::CanPublishSource(true, 0, 123, 5000, 1000, 4675, 4665));
+	ASSERT_TRUE(Kademlia::CanPublishSource(false, 0, 123, 5000, 1000, 0, 4665));
+}
+
 TEST(KadCallbackPolicy, RepublishBoundaryAndAbortedPublishRetry)
 {
 	ASSERT_FALSE(Kademlia::CanPublishSource(false, 0, 0, 1000, 999));

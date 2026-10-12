@@ -77,6 +77,12 @@ add_test (NAME KadCallbackPolicyTest COMMAND KadCallbackPolicyTest)
 target_include_directories (KadCallbackPolicyTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries (KadCallbackPolicyTest muleunit mulecommon)
 
+# Buddy keepalives and receive expiry with a deterministic monotonic clock.
+add_executable (KadBuddyLivenessTest KadBuddyLivenessTest.cpp)
+add_test (NAME KadBuddyLivenessTest COMMAND KadBuddyLivenessTest)
+target_include_directories (KadBuddyLivenessTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries (KadBuddyLivenessTest muleunit mulecommon)
+
 # The Kad firewall state across an hourly recheck, with the clock passed in.
 add_executable (KadFirewallRecheckTest KadFirewallRecheckTest.cpp)
 add_test (NAME KadFirewallRecheckTest COMMAND KadFirewallRecheckTest)

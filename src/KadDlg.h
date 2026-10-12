@@ -54,6 +54,7 @@ public:
 	void UpdateConnectButton();
 	void UpdateContactDistribution();
 	void ShowContactDistribution();
+	bool IsContactDistributionVisible() const;
 
 private:
 	COScopeCtrl *m_kad_scope;

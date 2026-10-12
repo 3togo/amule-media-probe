@@ -74,7 +74,7 @@ void CKadDlg::Init()
 	Bind(
 		wxEVT_TIMER,
 		[this](wxTimerEvent &) {
-			if (!IsShownOnScreen()) {
+			if (!IsContactDistributionVisible()) {
 				return;
 			}
 			UpdateContactDistribution();
@@ -93,13 +93,20 @@ void CKadDlg::Init()
 
 void CKadDlg::ShowContactDistribution()
 {
-	if (!IsShownOnScreen()) {
+	if (!IsContactDistributionVisible()) {
 		return;
 	}
 	UpdateContactDistribution();
 #ifdef CLIENT_GUI
 	theApp->RequestKadContactDistribution();
 #endif
+}
+
+bool CKadDlg::IsContactDistributionVisible() const
+{
+	// A minimized frame still has its shown flag set. Use the main window's
+	// event-based iconize state, which also handles wxGTK's stale IsIconized().
+	return IsShownOnScreen() && theApp->amuledlg && theApp->amuledlg->IsVisibleToUser();
 }
 
 void CKadDlg::UpdateContactDistribution()

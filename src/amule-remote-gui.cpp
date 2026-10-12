@@ -364,12 +364,12 @@ void CamuleRemoteGuiApp::OnPollTimer(wxTimerEvent &)
 	switch (request_step) {
 	case 0: {
 		CECPacket stats_req(EC_OP_STAT_REQ, EC_DETAIL_INC_UPDATE);
-		if (amuledlg->m_kademliawnd->IsShownOnScreen()) {
+		const bool distributionVisible = amuledlg->m_kademliawnd->IsContactDistributionVisible();
+		if (distributionVisible) {
 			stats_req.AddTag(CECEmptyTag(EC_TAG_STATS_KAD_DISTRIBUTION));
 		}
-		m_connect->SendRequest(amuledlg->m_kademliawnd->IsShownOnScreen() ? &m_kadDistributionUpdater
-										  : &m_stats_updater,
-			&stats_req);
+		m_connect->SendRequest(
+			distributionVisible ? &m_kadDistributionUpdater : &m_stats_updater, &stats_req);
 		request_step++;
 		break;
 	}
@@ -704,7 +704,7 @@ bool CamuleRemoteGuiApp::ShowConnectionDialog()
 void CamuleRemoteGuiApp::RequestKadContactDistribution()
 {
 	if (!m_connect || !poll_timer || !poll_timer->IsRunning() || !amuledlg ||
-		!amuledlg->m_kademliawnd->IsShownOnScreen() || m_connect->RequestFifoFull()) {
+		!amuledlg->m_kademliawnd->IsContactDistributionVisible() || m_connect->RequestFifoFull()) {
 		return;
 	}
 	CECPacket request(EC_OP_STAT_REQ, EC_DETAIL_INC_UPDATE);

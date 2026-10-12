@@ -912,7 +912,7 @@ if (NEED_LIB_MULEAPPCORE)
 		kademlia/routing/RoutingBin.cpp
 		kademlia/utils/UInt128.cpp
 		AsyncDNS.cpp
-		CanceledFileList.cpp
+		HashListFile.cpp
 		DeadSourceList.cpp
 		FileArea.cpp
 		FileAutoClose.cpp

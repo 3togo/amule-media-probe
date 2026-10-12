@@ -12,8 +12,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: aMule\n"
 "Report-Msgid-Bugs-To: https://github.com/amule-org/amule/issues\n"
-"POT-Creation-Date: 2026-10-10 10:52-0400\n"
-"PO-Revision-Date: 2026-10-08 11:09+0000\n"
+"POT-Creation-Date: 2026-10-09 12:39+0000\n"
+"PO-Revision-Date: 2026-10-11 09:44+0000\n"
 "Last-Translator: Marcel Pol <marcel@timelord.nl>\n"
 "Language-Team: Dutch <nl@li.org>\n"
 "Language: nl\n"
@@ -2782,15 +2782,15 @@ msgstr ""
 
 #: src/ExternalCommand.cpp
 msgid "The command template or an argument contains a NUL character."
-msgstr ""
+msgstr "Het commandosjabloon of een argument bevat een NUL-teken."
 
 #: src/ExternalCommand.cpp
 msgid "An event value cannot select the executable."
-msgstr ""
+msgstr "Een gebeurteniswaarde kan het uitvoerbare bestand niet kiezen."
 
 #: src/ExternalCommand.cpp
 msgid "An event value would be used as interpreter code, a script name, or an unsupported launcher argument."
-msgstr ""
+msgstr "Een gebeurteniswaarde zou gebruikt worden als code voor de interpreter, een scriptnaam of een niet-ondersteund argument voor een opstartprogramma."
 
 #: src/ExternalCommand.cpp
 msgid "A command-shell argument contains a double quote, percent sign, exclamation mark, or line break."
@@ -3293,27 +3293,6 @@ msgstr "Kon nieuw bestand %s niet hernoemen, update wordt gestopt."
 #: src/IPFilter.cpp
 msgid "IP filter is ready"
 msgstr "IP-filter is klaar"
-
-#: src/KadContactHistogram.h
-msgid "Contacts grouped by the first twelve bits of their KadID. Blue: all contacts; green: verified addresses. The marker shows your own KadID; clustering near it is expected."
-msgstr ""
-
-#: src/KadContactHistogram.h
-msgid "Loading contact distribution..."
-msgstr ""
-
-#: src/KadContactHistogram.h
-msgid "This core does not send the contact distribution. Update the core to see the chart."
-msgstr ""
-
-#: src/KadContactHistogram.h
-msgid "The core sent contact distribution data that could not be read."
-msgstr ""
-
-#: src/KadContactHistogram.h
-#, c-format
-msgid "Routing-table contacts: %u; verified: %u; distinct /24s: %u"
-msgstr ""
 
 #: src/KadDlg.cpp src/muuli_wdr.cpp src/StatisticsDlg.cpp
 msgid "Current"

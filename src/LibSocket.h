@@ -30,6 +30,7 @@
 #include "Types.h"
 #include <memory> // shared_ptr for CAsioUDPSocketImpl ownership
 class amuleIPV4Address;
+class CMuleUDPSocket;
 
 // Socket flags (unused in ASIO implementation, just provide the names)
 enum
@@ -80,6 +81,10 @@ public:
 	// wx Stuff
 	void Notify(bool);
 	bool Connect(const amuleIPV4Address &adr, bool wait);
+#ifdef ENABLE_IPV6
+	// IPv4 and IPv4-mapped targets are refused here; they keep using Connect().
+	bool ConnectIPv6(const CNetworkAddress &target, uint16 port, bool wait);
+#endif
 	// Bound the synchronous connect to `ms` milliseconds (0 = no bound, the default). Only
 	// affects the blocking connect path used by the synchronous EC clients (amulecmd); the
 	// async path is unaffected.
@@ -185,6 +190,13 @@ public:
 	void OnStreamLost() override;
 	void OnFlushRequested() override;
 
+#ifdef ENABLE_IPV6
+
+protected:
+	// For a subclass that refuses an IPv6 connect itself, so the refusal still reaches OnConnect().
+	bool RefuseConnectIPv6(const CNetworkAddress &target, uint16 port);
+#endif
+
 private:
 	// Replace the internal socket. Takes ownership of the passed shared_ptr.
 	void LinkSocketImpl(std::shared_ptr<class CAsioSocketImpl>);
@@ -257,7 +269,8 @@ class CLibUDPSocket
 	friend class CAsioUDPSocketImpl;
 
 public:
-	CLibUDPSocket(amuleIPV4Address &address, int flags);
+	// The handler comes in here because the first read is posted before the constructor returns.
+	CLibUDPSocket(amuleIPV4Address &address, int flags, CMuleUDPSocket *handler);
 	virtual ~CLibUDPSocket();
 
 	// wx Stuff
@@ -267,7 +280,6 @@ public:
 	int LastError() const;
 	void Close();
 	void Destroy();
-	void SetClientData(class CMuleUDPSocket *);
 
 	// Not needed here
 	bool Notify(bool) { return true; }

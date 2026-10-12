@@ -17,7 +17,8 @@ import sys
 import tempfile
 import time
 
-from AllSearchIntegrationTest import C, connect_daemon, exact, free_port, stop_daemon
+from AllSearchIntegrationTest import (C, connect_daemon, exact, free_ports,
+                                      retry_port_collisions, stop_daemon)
 
 
 def tag_list(data, offset, count):
@@ -74,11 +75,11 @@ def run(binary, root):
         d.mkdir()
     (incoming / 'a.bin').write_bytes(os.urandom(300_000))
     (incoming / 'c.bin').write_bytes(os.urandom(150_000))
-    port = free_port()
+    port, peer_port = free_ports(2)
     (root / 'amule.conf').write_text(f'''[eMule]
 Nick=watcher-regression
 FirstRunWizardDone=1
-Port={free_port()}
+Port={peer_port}
 UDPEnable=0
 Address=127.0.0.1
 ConnectToKad=0
@@ -106,7 +107,7 @@ ECPassword={hashlib.md5(b'regression').hexdigest()}
         proc = subprocess.Popen([binary, '-c', str(root), '--disable-fatal'], stdout=console, stderr=console, env=env)
         ec = None
         try:
-            ec = connect_daemon(proc, port)
+            ec = connect_daemon(proc, port, root, peer_port)
             wait_for(proc, 'a.bin and c.bin shared', lambda: {'a.bin', 'c.bin'} <= shared(ec).keys())
             original, c_hash = shared(ec)['a.bin'], shared(ec)['c.bin']
 
@@ -151,9 +152,11 @@ ECPassword={hashlib.md5(b'regression').hexdigest()}
 
 def main():
     binary = str(Path(sys.argv[1]).resolve())
-    with tempfile.TemporaryDirectory(prefix='amule-share-watcher-') as scratch:
-        # Resolved: macOS FSEvents reports /private/var for /var.
-        run(binary, Path(scratch).resolve())
+    def attempt():
+        with tempfile.TemporaryDirectory(prefix='amule-share-watcher-') as scratch:
+            # Resolved: macOS FSEvents reports /private/var for /var.
+            run(binary, Path(scratch).resolve())
+    retry_port_collisions(attempt)
     print('Shared-dir watcher move checks passed')
 
 

@@ -8,6 +8,13 @@ function (add_application_test_stubs target)
 	endif()
 endfunction()
 
+find_package (Python3 QUIET COMPONENTS Interpreter)
+if (Python3_Interpreter_FOUND)
+	add_test (NAME IntegrationFixtureUnitTest
+		COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/IntegrationFixtureUnitTest.py
+	)
+endif ()
+
 add_test (NAME QuicCMakeConfigTest
 	COMMAND ${CMAKE_COMMAND}
 		-DAMULE_SOURCE_DIR=${CMAKE_SOURCE_DIR}
@@ -113,6 +120,11 @@ add_executable (DeadSourceKeyTest DeadSourceKeyTest.cpp)
 add_test (NAME DeadSourceKeyTest COMMAND DeadSourceKeyTest)
 target_include_directories (DeadSourceKeyTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries (DeadSourceKeyTest muleunit mulecommon)
+
+add_executable (AdvertisedIPv6Test AdvertisedIPv6Test.cpp)
+add_test (NAME AdvertisedIPv6Test COMMAND AdvertisedIPv6Test)
+target_include_directories (AdvertisedIPv6Test PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries (AdvertisedIPv6Test muleunit mulecommon)
 
 # Credit identity and wait ownership run without the application. The test supplies
 # a deterministic GetTickCount64; do not link the production clock into this target.
@@ -812,6 +824,30 @@ target_include_directories (PeerAddressingTest
 )
 
 target_link_libraries (PeerAddressingTest
+	muleunit
+	${Boost_LIBRARIES}
+)
+
+# How a client is contacted, decided without the application.
+add_executable (ContactDialPolicyTest
+	ContactDialPolicyTest.cpp
+	${CMAKE_SOURCE_DIR}/src/libs/common/Format.cpp
+	${CMAKE_SOURCE_DIR}/src/libs/common/strerror_r.c
+	${CMAKE_SOURCE_DIR}/src/NetworkAddress.cpp
+)
+
+add_test (NAME ContactDialPolicyTest
+	COMMAND ContactDialPolicyTest
+)
+
+target_include_directories (ContactDialPolicyTest
+	PRIVATE ${CMAKE_BINARY_DIR}
+	PRIVATE ${CMAKE_SOURCE_DIR}/src
+	PRIVATE ${CMAKE_SOURCE_DIR}/src/include
+	PRIVATE ${Boost_INCLUDE_DIR}
+)
+
+target_link_libraries (ContactDialPolicyTest
 	muleunit
 	${Boost_LIBRARIES}
 )
@@ -2236,7 +2272,6 @@ option (ENABLE_INTEGRATION_TESTS
 	"Register tests that run real aMule programs on loopback. Timing-sensitive, so off for package builds"
 	OFF)
 if (ENABLE_INTEGRATION_TESTS AND BUILD_DAEMON AND UNIX AND NOT APPLE)
-	find_package (Python3 QUIET COMPONENTS Interpreter)
 	if (Python3_Interpreter_FOUND)
 		add_test (NAME KadDistributionECTest COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/KadDistributionECTest.py $<TARGET_FILE:amuled>)
 		add_test (NAME KadPopulatedDistributionECTest COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/KadDistributionECTest.py $<TARGET_FILE:amuled> --populated)

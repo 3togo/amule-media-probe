@@ -13,9 +13,6 @@ if (Python3_Interpreter_FOUND)
 	add_test (NAME IntegrationFixtureUnitTest
 		COMMAND ${Python3_EXECUTABLE} -u ${CMAKE_CURRENT_SOURCE_DIR}/IntegrationFixtureUnitTest.py -v
 	)
-	# A cold Python startup on Windows CI can exceed the fast suite's 10-second
-	# default. Keep a bounded allowance for this offline fixture and log each case.
-	set_tests_properties (IntegrationFixtureUnitTest PROPERTIES TIMEOUT 30)
 endif ()
 
 add_test (NAME QuicCMakeConfigTest

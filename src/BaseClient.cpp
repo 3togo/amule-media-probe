@@ -297,7 +297,7 @@ void CUpDownClient::Init()
 	m_lastaverage = 0;
 	m_minRTT = 0;
 
-	SetLastBuddyPingPongTime();
+	m_buddyLiveness.Reset(::GetTickCount64());
 	m_fRequestsCryptLayer = 0;
 	m_fSupportsCryptLayer = 0;
 	m_fRequiresCryptLayer = 0;
@@ -720,15 +720,22 @@ bool CUpDownClient::ProcessHelloTypePacket(const CMemFile &data)
 			// lets a single unverified peer decide what this client believes its own address to
 			// be. emule-qt ignores the integer form, and this follows emule-qt.
 			//
-			// Even the hash form is not believed on one peer's word. It goes to a tracker that
-			// first checks the value is an address this machine actually holds -- so peers can
-			// only disambiguate between our own, never make us adopt a foreign one -- and then
-			// requires several distinct *observed* addresses to agree within a time window, keyed
-			// on where the packet actually came from rather than on the peer's self-declared user
-			// hash. Nothing consumes the result yet.
+			// Even the hash form is not believed on one peer's word. The tracker takes only an
+			// address this machine holds, so peers can never make us adopt a foreign one, and
+			// counts one vote per /64 of a peer that reached us over IPv6 from outside the
+			// claimed /64, keyed on where the packet came from rather than on a self-declared
+			// user hash. Votes for any of our addresses in one /64 add up, within a time window.
+			// Nothing consumes the result yet.
 			if (temptag.IsHash()) {
-				ObservedPublicIPv6().AddClaim(
-					GetConnectIP(), temptag.GetHash().GetHash(), ::GetTickCount64());
+				const std::uint8_t *claimed = temptag.GetHash().GetHash();
+				if (ObservedPublicIPv6().AddClaim(
+					    GetConnectAddress(), claimed, ::GetTickCount64())) {
+					AddDebugLogLineN(logClient,
+						CFormat("Peers reaching us over IPv6 see us in %s/64") %
+							CNetworkAddress::FromIPv6Bytes(claimed)
+								.TruncatedToPrefix(64)
+								.ToWxString());
+				}
 			}
 			break;
 
@@ -3090,7 +3097,7 @@ void CUpDownClient::SetBuddyID(const uint8_t *pucBuddyID)
 
 bool CUpDownClient::SendBuddyPing()
 {
-	SetLastBuddyPingPongTime();
+	RecordBuddyPingSent();
 	CPacket *buddyPing = new CPacket(OP_BUDDYPING, 0, OP_EMULEPROT);
 	theStats::AddUpOverheadKad(buddyPing->GetPacketSize());
 	AddDebugLogLineN(logLocalClient, "Local Client: OP_BUDDYPING to " + GetFullIP());

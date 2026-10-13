@@ -11,7 +11,7 @@ endfunction()
 find_package (Python3 QUIET COMPONENTS Interpreter)
 if (Python3_Interpreter_FOUND)
 	add_test (NAME IntegrationFixtureUnitTest
-		COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/IntegrationFixtureUnitTest.py -v
+		COMMAND ${Python3_EXECUTABLE} -u ${CMAKE_CURRENT_SOURCE_DIR}/IntegrationFixtureUnitTest.py -v
 	)
 endif ()
 
@@ -2333,6 +2333,10 @@ if (ENABLE_INTEGRATION_TESTS AND BUILD_DAEMON AND UNIX AND NOT APPLE)
 			COMMAND ${Python3_EXECUTABLE}
 				${CMAKE_CURRENT_SOURCE_DIR}/AllSearchIntegrationTest.py $<TARGET_FILE:amuled>
 		)
+		add_test (NAME CategoryTagECTest
+			COMMAND ${Python3_EXECUTABLE}
+				${CMAKE_CURRENT_SOURCE_DIR}/CategoryTagECTest.py $<TARGET_FILE:amuled>
+		)
 		add_test (NAME KadLookupECTest
 			COMMAND ${Python3_EXECUTABLE}
 				${CMAKE_CURRENT_SOURCE_DIR}/KadLookupECTest.py $<TARGET_FILE:amuled>
@@ -2349,6 +2353,10 @@ if (ENABLE_INTEGRATION_TESTS AND BUILD_DAEMON AND UNIX AND NOT APPLE)
 		add_test (NAME KnownHistoryIntegrationTest
 			COMMAND ${Python3_EXECUTABLE}
 				${CMAKE_CURRENT_SOURCE_DIR}/KnownHistoryIntegrationTest.py $<TARGET_FILE:amuled>
+		)
+		add_test (NAME CancelCompletedIntegrationTest
+			COMMAND ${Python3_EXECUTABLE}
+				${CMAKE_CURRENT_SOURCE_DIR}/CancelCompletedIntegrationTest.py $<TARGET_FILE:amuled>
 		)
 		if (BUILD_AMULEAPI AND BUILD_AMULECMD)
 			add_test (NAME AllSearchClientCapabilityTest
@@ -2509,3 +2517,21 @@ add_executable (RemoteDownloadEventsTest RemoteDownloadEventsTest.cpp)
 add_test (NAME RemoteDownloadEventsTest COMMAND RemoteDownloadEventsTest)
 target_include_directories (RemoteDownloadEventsTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries (RemoteDownloadEventsTest muleunit mulecommon)
+
+add_executable (GeoIPUpdateScheduleTest GeoIPUpdateScheduleTest.cpp)
+target_include_directories (GeoIPUpdateScheduleTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries (GeoIPUpdateScheduleTest muleunit mulecommon)
+add_test (NAME GeoIPUpdateScheduleTest COMMAND GeoIPUpdateScheduleTest)
+
+if (ENABLE_IP2COUNTRY)
+	add_executable (MaxMindDBUpdateTest
+		MaxMindDBUpdateTest.cpp
+		${CMAKE_SOURCE_DIR}/src/geoip/MaxMindDBDatabase.cpp
+		${CMAKE_SOURCE_DIR}/src/LoggerConsole.cpp
+	)
+	target_include_directories (MaxMindDBUpdateTest PRIVATE
+		${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/src/include
+	)
+	target_link_libraries (MaxMindDBUpdateTest muleunit mulecommon MaxMindDB::Shared)
+	add_test (NAME MaxMindDBUpdateTest COMMAND MaxMindDBUpdateTest)
+endif()

@@ -1587,8 +1587,11 @@ uint32 ChatCursorFrom(const CECPacket *request)
 // connection's EC_TAG_CAN_CHAT_PEER_HASH echo: a client that predates the hash tag
 // would misread it, or a duplicate GUI_ID sharing one value, as one session.
 // A non-zero `legacyView` encodes only what a legacy client sees under that GUI_ID.
-CECTag EncodeChatSession(
-	const CChatSessionStore::Session &session, uint32 cursor, bool peerHashCapable, uint64 legacyView = 0)
+CECTag EncodeChatSession(const CChatSessionStore::Session &session,
+	uint32 cursor,
+	bool peerHashCapable,
+	uint64 legacyView = 0,
+	const CECPacket *request = nullptr)
 {
 	const auto inView = [legacyView](const CChatSessionStore::Message &msg) {
 		return !legacyView || msg.legacy_route == legacyView;
@@ -1627,7 +1630,19 @@ CECTag EncodeChatSession(
 	tag.AddTag(CECTag(EC_TAG_CHAT_CAPTCHA_ID, pendingCaptcha));
 	// The cursor filters history only. A live challenge must remain recoverable
 	// after an EC reconnect or after unrelated messages evict its transcript row.
-	if (pendingCaptcha && session.captcha_id == pendingCaptcha && !session.captcha_image.IsEmpty()) {
+	bool imageKnown = false;
+	if (request) {
+		for (const CECTag &known : *request) {
+			if (known.GetTagName() == EC_TAG_CHAT_CAPTCHA_ID && known.GetInt() == pendingCaptcha)
+				imageKnown = true;
+		}
+	}
+	const bool imageInHistory = std::any_of(
+		session.messages.begin(), session.messages.end(), [&](const CChatSessionStore::Message &msg) {
+			return msg.id == pendingCaptcha && msg.id > cursor && inView(msg);
+		});
+	if (pendingCaptcha && !imageKnown && !imageInHistory && session.captcha_id == pendingCaptcha &&
+		!session.captcha_image.IsEmpty()) {
 		tag.AddTag(CECTag(EC_TAG_CHAT_CAPTCHA_IMAGE, session.captcha_image));
 	}
 	if (const CFriend *f = theApp->friendlist->FindFriend(session.peer.Hash(), 0, 0)) {
@@ -4308,8 +4323,8 @@ CECPacket *CECServerSocket::ProcessRequest2(const CECPacket *request)
 			// Keyed by GUI_ID, as 3.1.0 did: one conversation per route, so a peer that
 			// changes route keeps its old conversation and gets a new one.
 			for (const auto &view : theApp->chatsessions->LegacySessions()) {
-				response->AddTag(
-					EncodeChatSession(*view.session, cursor, false, view.gui_id));
+				response->AddTag(EncodeChatSession(
+					*view.session, cursor, false, view.gui_id, request));
 			}
 			break;
 		}
@@ -4326,7 +4341,8 @@ CECPacket *CECServerSocket::ProcessRequest2(const CECPacket *request)
 			// Sessions with nothing new are still listed, with no message children: that is
 			// how a client that connected late learns the session exists, and how every
 			// client learns a session it is tracking was closed elsewhere.
-			response->AddTag(EncodeChatSession(*session, cursor, m_chatPeerHashActive));
+			response->AddTag(
+				EncodeChatSession(*session, cursor, m_chatPeerHashActive, 0, request));
 		}
 		break;
 	}

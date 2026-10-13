@@ -5715,6 +5715,12 @@ void WriteChatObject(CJsonWriter &w, const webapi::ChatSessionSnapshot &s)
 	// this surface spells absence, and /clients/0 is a 404 waiting to happen.
 	WriteIntOrNull(w, "client_ecid", s.client_ecid != 0, static_cast<int64_t>(s.client_ecid));
 	WriteIntOrNull(w, "friend_ecid", s.friend_ecid != 0, static_cast<int64_t>(s.friend_ecid));
+	WriteIntOrNull(w, "pending_captcha_id", s.pending_captcha_id != 0, s.pending_captcha_id);
+	w.Key("pending_captcha_image");
+	if (s.pending_captcha_image.empty())
+		w.ValueNull();
+	else
+		w.ValueString(wxString::FromUTF8(s.pending_captcha_image.c_str()));
 	// Same rule as the /friends row: reachability, not object existence.
 	WriteBoolOrNull(w, "connected", s.has_connected, s.connected);
 	w.Key("message_count");

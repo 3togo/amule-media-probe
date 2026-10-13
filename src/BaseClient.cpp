@@ -3246,6 +3246,7 @@ void CUpDownClient::ProcessCaptchaRequest(CMemFile *data)
 	const CChatPeer peer = GetChatPeer();
 	if (GetChatCaptchaState() != CA_ACCEPTING || GetChatState() == MS_NONE || !theApp->chatsessions ||
 		!theApp->chatsessions->Find(peer)) {
+		AddDebugLogLineN(logClient, "Received unexpected chat CAPTCHA request from " + GetFullIP());
 		return;
 	}
 	// Reserved tags precede the bitmap; CMemFile/CTag reject truncated packets.
@@ -3278,6 +3279,9 @@ void CUpDownClient::ProcessCaptchaReqRes(uint8 status)
 	const CChatPeer peer = GetChatPeer();
 	const bool expected = GetChatCaptchaState() == CA_SOLUTIONSENT && GetChatState() != MS_NONE;
 	if (!expected || status > 2) {
+		AddDebugLogLineN(logClient,
+			CFormat("Received unexpected chat CAPTCHA result (%u) from %s") % status %
+				GetFullIP());
 		return;
 	}
 	m_nChatCaptchaState = CA_NONE;

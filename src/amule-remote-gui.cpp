@@ -459,6 +459,8 @@ void CamuleRemoteGuiApp::OnPollTimer(wxTimerEvent &)
 			if (m_chatmsg_handler.Cursor()) {
 				chat_req.AddTag(CECTag(EC_TAG_CHAT_MSG_ID, m_chatmsg_handler.Cursor()));
 			}
+			for (const auto id : m_chatmsg_handler.PresentedCaptchas())
+				chat_req.AddTag(CECTag(EC_TAG_CHAT_CAPTCHA_ID, id));
 			m_connect->SendRequest(&m_chatmsg_handler, &chat_req);
 		}
 		// Back to the roots
@@ -1410,8 +1412,24 @@ void CChatMsgHandlerRem::HandlePacket(const CECPacket *packet)
 			}
 			const CECTag *dirTag = msgTag.GetTagByName(EC_TAG_CHAT_DIRECTION);
 			const bool outgoing = dirTag && dirTag->GetInt() != 0;
-			chatwnd->AppendStoredMessage(
-				peer, name, msgTag.GetStringData(), outgoing, /*blink=*/!backfill);
+			wxString text = msgTag.GetStringData();
+			if (const CECTag *kind = msgTag.GetTagByName(EC_TAG_CHAT_MESSAGE_KIND)) {
+				if (kind->GetInt() == 1) {
+					text = _("*** Solve the CAPTCHA and send its text as a message.");
+				} else if (kind->GetInt() == 2) {
+					const CECTag *status =
+						msgTag.GetTagByName(EC_TAG_CHAT_CAPTCHA_STATUS);
+					if (status && status->GetInt() <= 2) {
+						text = status->GetInt() == 0 ? _("*** CAPTCHA passed; your "
+										 "message was delivered.")
+						       : status->GetInt() == 1
+							       ? _("*** CAPTCHA failed; send another message "
+								   "to try again.")
+							       : _("*** CAPTCHA failed; no attempts remain.");
+					}
+				}
+			}
+			chatwnd->AppendStoredMessage(peer, name, text, outgoing, /*blink=*/!backfill);
 		}
 		// Repeated live snapshots must not reopen a dialog the user canceled.
 		// Retain only ids which are still pending, bounding this set by sessions.

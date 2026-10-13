@@ -715,6 +715,17 @@ void PublishChatEvents(CEventBus &bus,
 	std::vector<std::pair<std::string, std::string>> batch;
 	for (const ChatSessionSnapshot &session : new_messages) {
 		const std::string peer = session.PeerKey();
+		if (session.pending_captcha_changed)
+			batch.emplace_back("chat_session_updated",
+				"{\"address\":\"" + EscJson(peer) + "\",\"hash\":" +
+					(session.peer_hash.empty()
+							? std::string("null")
+							: "\"" + EscJson(session.peer_hash) + "\"") +
+					",\"pending_captcha_id\":" +
+					(session.pending_captcha_id
+							? std::to_string(session.pending_captcha_id)
+							: std::string("null")) +
+					"}");
 		for (const ChatMessageSnapshot &msg : session.messages) {
 			std::string payload =
 				"{\"address\":\"" + EscJson(peer) + "\",\"hash\":" +

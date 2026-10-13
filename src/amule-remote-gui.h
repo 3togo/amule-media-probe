@@ -833,6 +833,7 @@ public:
 
 	//! Resume cursor for the next poll; 0 until the first reply lands.
 	uint32 Cursor() const { return m_cursor; }
+	const std::set<uint32> &PresentedCaptchas() const { return m_presentedCaptchas; }
 
 private:
 	uint32 m_cursor = 0;

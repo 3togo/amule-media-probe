@@ -2196,3 +2196,17 @@ TEST(EventDiff, ChatCaptchaEventsCarryImagesAndAllResultStatuses)
 			    std::string::npos);
 	}
 }
+
+TEST(EventDiff, ChatCaptchaExpiryEmitsSessionUpdateWithoutMessage)
+{
+	CEventBus bus;
+	ChatSessionSnapshot change;
+	change.peer_hash = "0123456789abcdef0123456789abcdef";
+	change.pending_captcha_changed = true;
+	PublishChatEvents(bus, { change }, {});
+	const auto events = DrainAll(bus);
+	ASSERT_EQUALS(static_cast<size_t>(1), events.size());
+	ASSERT_EQUALS(std::string("chat_session_updated"), events[0].name);
+	ASSERT_TRUE(events[0].data.find("\"pending_captcha_id\":null") != std::string::npos);
+	ASSERT_TRUE(events[0].data.find(change.peer_hash) != std::string::npos);
+}

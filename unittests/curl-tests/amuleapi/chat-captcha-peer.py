@@ -209,6 +209,14 @@ StaticRoot={Path(__file__).resolve().parents[3] / 'src/webapi/static'}
                     assert fields[C["EC_TAG_CHAT_CAPTCHA_ID"]][0] == challenge["id"]
                     encoded = fields[C["EC_TAG_CHAT_CAPTCHA_IMAGE"]][0].rstrip(b"\0")
                     assert base64.b64decode(encoded, validate=True) == bmp
+                    session_row = request("/chats")["chats"][0]
+                    assert session_row["pending_captcha_id"] == challenge["id"]
+                    assert base64.b64decode(session_row["pending_captcha_image"], validate=True) == bmp
+                    # Acknowledging the image suppresses it, independently of the cursor.
+                    _, acknowledged = ec.call(C["EC_OP_GET_CHAT_SESSIONS"],
+                        [integer(C["EC_TAG_CHAT_MSG_ID"], challenge["id"]),
+                         integer(C["EC_TAG_CHAT_CAPTCHA_ID"], challenge["id"])])
+                    assert C["EC_TAG_CHAT_CAPTCHA_IMAGE"] not in acknowledged[C["EC_TAG_CHAT_SESSION"]][1]
                     # Duplicate challenges are rejected until this one is answered.
                     send_packet(sock, 0xC5, 0xA5, b"\x00" + bmp)
                     time.sleep(1.2)
@@ -281,10 +289,29 @@ StaticRoot={Path(__file__).resolve().parents[3] / 'src/webapi/static'}
                 wait_for(lambda: len(history()) == count + 1, "message before disconnect")
                 send_packet(sock, 0xC5, 0xA5, b"\x00" + bmp)
                 wait_for(lambda: len(history()) == count + 2, "challenge before disconnect")
+                expired_id = history()[-1]["id"]
                 sock.shutdown(socket.SHUT_RDWR)
                 sock.close()
                 wait_for(lambda: any(c["connected"] is False for c in request("/chats")["chats"]),
                          "disconnected peer")
+                wait_for(lambda: request("/chats")["chats"][0]["pending_captcha_id"] is None,
+                         "expired REST pending challenge")
+                assert request("/chats")["chats"][0]["pending_captcha_image"] is None
+                rejected_answer(expired_id)
+                # Expiry has no transcript message but must reach live viewers.
+                saw_pending = False
+                while True:
+                    raw = stream.readline()
+                    assert raw, "SSE stream ended before CAPTCHA expiry"
+                    line = raw.decode().strip()
+                    if line.startswith("event:"):
+                        event = line[6:].strip()
+                    elif line.startswith("data:") and event == "chat_session_updated":
+                        pending = json.loads(line[5:])["pending_captcha_id"]
+                        if pending == expired_id:
+                            saw_pending = True
+                        elif pending is None and saw_pending:
+                            break
                 request(f"/chats/{address}/messages", {"text": "after reconnect"})
                 sock, _ = listener.accept()
                 with sock:
@@ -315,6 +342,21 @@ StaticRoot={Path(__file__).resolve().parents[3] / 'src/webapi/static'}
                                         "new challenge after closing and reopening")
                     rejected_answer(last_challenge)
                     assert messages[-1]["id"] != last_challenge
+                    pending_id = messages[-1]["id"]
+                    for index in range(205):
+                        text = f"incoming {index}".encode()
+                        send_packet(sock, 0xE3, 0x4E, struct.pack("<H", len(text)) + text)
+                    wait_for(lambda: len(history()) == 200 and history()[-1]["text"] == "incoming 204",
+                             "pending challenge evicted from history")
+                    assert all(m["id"] != pending_id for m in history())
+                    row = request("/chats")["chats"][0]
+                    assert row["pending_captcha_id"] == pending_id
+                    assert base64.b64decode(row["pending_captcha_image"], validate=True) == bmp
+                    _, tags = ec.call(C["EC_OP_GET_CHAT_SESSIONS"],
+                        [integer(C["EC_TAG_CHAT_MSG_ID"], row["last_message_id"])])
+                    fields = tags[C["EC_TAG_CHAT_SESSION"]][1]
+                    assert C["EC_TAG_CHAT_MESSAGE"] not in fields
+                    assert base64.b64decode(fields[C["EC_TAG_CHAT_CAPTCHA_IMAGE"]][0].rstrip(b"\0")) == bmp
                     request(f"/chats/{address}", method="DELETE")
         print("PASS: local peer challenge, image validation, retry, success, exhausted attempts, duplicate/unsolicited packets, REST, SSE, reconnect, close/reopen, delayed results and stale answers")
     except Exception:

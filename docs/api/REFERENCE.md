@@ -3235,6 +3235,8 @@ curl -s -H "Authorization: Bearer $TOKEN" "http://$HOST/api/v1/chats"
       "client_ecid":     4382,
       "friend_ecid":     12,
       "connected":       true,
+      "pending_captcha_id": null,
+      "pending_captcha_image": null,
       "message_count":   14,
       "last_message_id":     91,
       "last_message_at": 1786652714,
@@ -3246,6 +3248,13 @@ curl -s -H "Authorization: Bearer $TOKEN" "http://$HOST/api/v1/chats"
 ```
 
 `name` falls back to the uppercase hash when known, otherwise `"IP: <ip> Port: <port>"`, matching desktop `ChatPeerFallbackName`. The same string appears in the SSE payload. `client_ecid` is `null` when the client is offline and `friend_ecid` is `null` when the client is not a friend — join either against [`GET /clients`](#get-apiv1clients) and [`GET /friends`](#get-apiv1friends). `connected` says whether a connection to the peer is actually up, which is not the same as `client_ecid` being non-null: the daemon holds a client object from the first contact attempt, so a conversation opened against an unreachable address has an ecid and is not online. `null` means the daemon does not report peer connectivity.
+
+`pending_captcha_id` on the chat session is the challenge message id while an
+answer is pending, otherwise `null`. `pending_captcha_image` holds its base64 BMP
+independently of transcript eviction, otherwise `null`. A disconnect or an answer
+from any client clears both fields and emits `chat_session_updated`, even without
+a new history row. Capture the id when composing an answer and send `captcha_id`
+to reject expiry races.
 
 `last_message` is `null` for a conversation that holds none; the key is always present. The full transcript is deliberately **not** on the list: 50 conversations at 200 messages each would be 10 000 objects per read. Use the messages endpoint below.
 

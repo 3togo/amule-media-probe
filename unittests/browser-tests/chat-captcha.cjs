@@ -84,28 +84,77 @@ const server = http.createServer((req, res) => {
     await page.waitForFunction(() => document.querySelector('.toast')?.textContent.includes('no longer pending'));
     assert.deepEqual(requests[0], { text: 'late answer', captcha_id: 42 });
     assert.equal(await input.inputValue(), 'late answer'); // failure preserves the draft
+    assert.ok(await page.locator('.toast').textContent().then(text => text.includes('Send the text again')));
+    // Retrying the retained draft must stop sending the retired challenge id.
+    reject = false;
+    await input.press('Enter');
+    await page.waitForFunction(() => document.querySelector('input[name="message"]').value === '');
+    assert.deepEqual(requests.at(-1), { text: 'late answer' });
+    // A replacement learned only from the failure refresh becomes the retry id.
+    pending = 43;
+    await page.evaluate(async () => { await window.chats.adopt(); });
+    await input.fill('replacement answer');
+    pending = 44; reject = true;
+    await input.press('Enter');
+    await page.waitForFunction(() => document.querySelector('.toast')?.textContent.includes('Use the latest challenge'));
+    assert.deepEqual(requests.at(-1), { text: 'replacement answer', captcha_id: 43 });
+    assert.equal(await input.inputValue(), 'replacement answer');
+    reject = false;
+    await input.press('Enter');
+    await page.waitForFunction(() => document.querySelector('input[name="message"]').value === '');
+    assert.deepEqual(requests.at(-1), { text: 'replacement answer', captcha_id: 44 });
+    pending = 0;
+    await page.evaluate(async () => { await window.chats.adopt(); });
     await input.fill(''); await input.fill('ordinary message');
     reject = false;
     await input.press('Enter');
     await page.waitForFunction(() => document.querySelector('input[name="message"]').value === '');
-    assert.deepEqual(requests[1], { text: 'ordinary message' });
+    assert.deepEqual(requests.at(-1), { text: 'ordinary message' });
     // Sending a live answer includes the id; a response cannot erase a newer draft.
     pending = 43; hold = true;
     await page.evaluate(async () => { await window.chats.adopt(); });
     await input.fill('current answer'); await input.press('Enter');
     await page.waitForTimeout(100);
-    assert.deepEqual(requests[2], { text: 'current answer', captcha_id: 43 });
+    assert.deepEqual(requests.at(-1), { text: 'current answer', captcha_id: 43 });
     await input.fill('new draft'); respond();
     await page.waitForTimeout(100);
     assert.equal(await input.inputValue(), 'new draft');
+    // A rejected older send must not rebind text edited during the request.
+    pending = 45; reject = true;
+    await page.evaluate(async () => { await window.chats.adopt(); });
+    await input.fill(''); await input.fill('old draft'); await input.press('Enter');
+    await page.waitForTimeout(100);
+    pending = 46;
+    await page.evaluate(async () => { await window.chats.adopt(); });
+    await input.fill(''); await input.fill('new answer');
+    pending = 47; respond();
+    await page.waitForFunction(() => window.store.get('chats').tabs[0].pendingCaptchaId === 47);
+    await page.waitForTimeout(100);
+    assert.equal(await input.inputValue(), 'new answer');
+    reject = false; hold = false;
+    await input.press('Enter');
+    await page.waitForFunction(() => document.querySelector('input[name="message"]').value === '');
+    assert.deepEqual(requests.at(-1), { text: 'new answer', captcha_id: 46 });
     // Closing during a send must not resurrect the tab when the reply arrives.
+    hold = true;
     await input.fill(''); await input.fill('closing'); await input.press('Enter');
     await page.waitForTimeout(100);
     await page.evaluate(async () => { await window.chats.close('127.0.0.1:4662'); });
     respond();
     await page.waitForTimeout(100);
     assert.equal(await page.evaluate(() => window.store.get('chats').tabs.length), 0);
+    // A failure's refresh must also respect a tab closed during the request.
+    closed = false; pending = 48; reject = true;
+    await page.evaluate(async () => { await window.chats.adopt(); });
+    await input.fill('closed answer'); await input.press('Enter');
+    await page.waitForTimeout(100);
+    assert.deepEqual(requests.at(-1), { text: 'closed answer', captcha_id: 48 });
+    await page.evaluate(async () => { await window.chats.close('127.0.0.1:4662'); });
+    respond();
+    await page.waitForFunction(() => document.querySelector('.toast')?.textContent.includes('Send the text again'));
+    assert.equal(await page.evaluate(() => window.store.get('chats').tabs.length), 0);
+    assert.equal(await input.inputValue(), '');
     assert.deepEqual(errors, []);
-    console.log('PASS: evicted pending image, expiry display, stale-id submission, failed draft retention, ordinary messages, live answers concurrent draft edits and tab closure during send');
+    console.log('PASS: pending image recovery, expiry, retained-draft retries with no/replacement challenge, ordinary messages, concurrent edits after successful/rejected sends, and tab closure');
   } finally { await browser.close(); server.close(); }
 })().catch(error => { console.error(error); server.close(); process.exitCode = 1; });

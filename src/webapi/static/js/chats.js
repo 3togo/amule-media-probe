@@ -463,8 +463,11 @@ export const chats = {
       }
       return true;
     } catch (e) {
-      toast(terr(noteError(e)) || t("messages_error"), "error");
-      adopt();
+      noteError(e);
+      await adopt();
+      const message = e?.code === "captcha_expired" && !convs.get(conv.peer)?.pendingCaptchaId
+        ? t("messages_captcha_retry_message") : terr(e) || t("messages_error");
+      toast(message, "error");
       return false;
     }
   },

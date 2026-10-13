@@ -1023,6 +1023,7 @@
   "prefs_field_geoip_download_in_progress": "Downloading",
   "prefs_field_geoip_last_update_status": "Last result",
   "messages_captcha_expired": "This CAPTCHA is no longer pending.",
+  "messages_captcha_retry_message": "This CAPTCHA is no longer pending. Send the text again as a message.",
   "messages_captcha_challenge": "Solve the CAPTCHA below and send its text using the message field.",
   "messages_captcha_passed": "CAPTCHA passed. Your message was delivered.",
   "messages_captcha_retry": "CAPTCHA failed. Send another message to try again.",

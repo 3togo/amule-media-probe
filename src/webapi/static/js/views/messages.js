@@ -8,6 +8,7 @@ import { html, useState, useEffect, useRef, useStore } from "../dom.js";
 import { Placeholder, Tabs, toast, confirmDialog } from "../components.js";
 import { Icon } from "../icons.js";
 import { chats } from "../chats.js";
+import { store } from "../store.js";
 import { searches } from "../searches.js";
 import { t, terr } from "../i18n.js";
 
@@ -196,7 +197,15 @@ function ChatPane({ reg, active, isGuest }) {
     sending.current = true;
     const sent = await chats.send(peer, text, draftCaptcha.current);
     sending.current = false;
-    if (sent && version === draftVersion.current) { setDraft(""); draftCaptcha.current = 0; }
+    if (version === draftVersion.current) {
+      if (sent) { setDraft(""); draftCaptcha.current = 0; }
+      else {
+        // The failed send refreshes shared state before returning. Keep the
+        // text, but let an explicit retry use the current challenge (or none).
+        const current = (store.get("chats")?.tabs || []).find((x) => x.peer === peer);
+        draftCaptcha.current = current?.pendingCaptchaId || 0;
+      }
+    }
   };
 
   const addToFriends = async () => {

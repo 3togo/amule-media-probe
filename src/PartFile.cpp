@@ -867,6 +867,9 @@ uint8 CPartFile::LoadPartFile(
 	}
 
 	if (m_gaplist.IsComplete()) { // is this file complete already?
+		// The return skips the call below, and a completed file is never processed
+		// again, so its stored progress would stay at 0%.
+		UpdateCompletedInfos();
 		CompleteFile(false);
 		return true;
 	}
@@ -2516,6 +2519,13 @@ void CPartFile::RemoveAllSources(bool bTryToSwap)
 
 void CPartFile::Delete()
 {
+	// Once complete, m_fullname is the file in Incoming. While completing, the completion
+	// task still holds this object.
+	if (status == PS_COMPLETE || status == PS_COMPLETING) {
+		AddDebugLogLineC(logPartFile, CFormat("Not deleting finished download '%s'") % GetFileName());
+		return;
+	}
+
 	AddLogLineN(CFormat(_("Deleting file: %s")) % GetFileName());
 
 	// This function ends in `delete this`, so the object is already on its way out: set the

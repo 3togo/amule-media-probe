@@ -39,6 +39,7 @@
 #include "libs/ec/cpp/ECCrypt.h"
 
 #include "ECIdDiff.h"            // Needed for ComputeRemovedIds
+#include "ECNotificationDrain.h" // Bounded, deferred EC push delivery
 #include "ExternalConn.h"        // Interface declarations
 #include "ECFullResponseCache.h" // Needed for s_ec*FullCache
 #include "updownclient.h"        // Needed for CUpDownClient
@@ -488,7 +489,8 @@ private:
 	// Bound on the WriteDoneAndQueueEmpty -> SendPacket -> OnOutput ->
 	// WriteDoneAndQueueEmpty recursion chain that drains the notifier queue. See
 	// WriteDoneAndQueueEmpty for the full reasoning.
-	int m_notification_dispatch_depth;
+	CECNotificationTimer m_notificationTimer;
+	CECNotificationDrain m_notificationDrain;
 
 	// EC INC_UPDATE skip-unchanged state. `m_lastEcGenSeen*` values are the highest
 	// `CKnownFile::s_globalEcGen` already reflected in the client's view *for that
@@ -602,7 +604,6 @@ CECServerSocket::CECServerSocket(ECNotifier *notifier)
 , m_passwd_salt(GetRandomUint64())
 , m_aeadCipher(ECCrypt::Cipher_None)
 , m_aeadOfferMalformed(false)
-, m_notification_dispatch_depth(0)
 , m_lastEcGenSeen(0)
 , m_lastEcGenSeenShared(0)
 , m_lastEcGenSeenPart(0)
@@ -838,6 +839,8 @@ const CECPacket *CECServerSocket::OnPacketReceived(const CECPacket *packet, uint
 
 void CECServerSocket::OnLost()
 {
+	m_notificationDrain.Cancel();
+	m_notificationTimer.Cancel();
 	AddLogLineN(_("External connection closed."));
 	theApp->ECServerHandler->m_ec_notifier->Remove_EC_Client(this);
 	DestroySocket();
@@ -863,32 +866,30 @@ void CECServerSocket::WriteDoneAndQueueEmpty()
 	// half-closed EC peer needs to be torn down. With the peer in kernel CLOSE-WAIT,
 	// writes silently succeed against the dead buffer and amuled spins indefinitely.
 	//
-	// Cap the dispatch depth so the chain returns to the event loop every MAX_DEPTH
-	// packets. Pending asio completions get processed in between; on a healthy peer the
-	// loop resumes when OnSend re-enters via the next one.
-	static const int MAX_DEPTH = 8;
-	if (m_notification_dispatch_depth >= MAX_DEPTH) {
-		return;
-	}
-
-	// ECNotifier::GetNextPacket returns a fresh CECPacket and the caller owns it;
-	// SendPacket only serialises it into the per-socket output queue and never deletes.
-	// Hand the raw pointer to a smart pointer so the packet and its CECTag tree are freed
-	// at scope exit -- pre-fix this was the dominant retained-bytes leak on a
-	// long-running amuled with peers attached.
-	CSmartPtr<CECPacket> packet(m_ec_notifier->GetNextPacket(this));
-	if (!packet) {
-		return;
-	}
-
-	m_notification_dispatch_depth++;
-	try {
-		SendPacket(packet.get());
-	} catch (...) {
-		m_notification_dispatch_depth--;
-		throw;
-	}
-	m_notification_dispatch_depth--;
+	// Bound synchronous recursion and arm one main-thread continuation timer at the cap.
+	// Do not rely on another OnSend after an accepted write: transports may notify only
+	// after a refusal. The timer keeps push updates draining without a notifier event or request.
+	// If output is blocked, leave it to OnSend to drain the queue before pulling updates.
+	m_notificationDrain.Run(
+		[this]() {
+			// Close()/Destroy() may precede deletion, including during core shutdown.
+			// Recheck before touching the notifier, which can already have been freed.
+			if (!theApp->IsRunning() || IsDestroying() || !IsSocketConnected() ||
+				SocketRealError() || DataPending() || !HaveNotificationSupport() ||
+				m_conn_state != CONN_ESTABLISHED) {
+				return;
+			}
+			// GetNextPacket transfers ownership; SendPacket only serialises the packet.
+			CSmartPtr<CECPacket> packet(m_ec_notifier->GetNextPacket(this));
+			if (packet) {
+				SendPacket(packet.get());
+			}
+		},
+		[this](auto continuation) {
+			if (!m_notificationTimer.Schedule(std::move(continuation))) {
+				OnLost();
+			}
+		});
 }
 
 //-------------------- ExternalConn --------------------

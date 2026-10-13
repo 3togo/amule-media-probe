@@ -38,6 +38,7 @@
 #include "muuli_wdr.h"
 
 #include "amuleDlg.h" // Needed for CLIENT_SKIN_SIZE (clientImages' artIds static_assert)
+#include "KadContactHistogram.h"
 #include "DialogLayout.h" // Scrollable details dialogs
 #include "OtherFunctions.h" // Needed for LabelWithColon
 
@@ -2792,6 +2793,9 @@ wxSizer *KadDlg( wxWindow *parent, bool call_fit, bool set_sizer )
     // after construction, which sets the real label/bitmap for the current state.
     wxButton *item38 = new wxButton( parent, ID_KADDISCONNECT, _("Connect"), wxDefaultPosition, wxDefaultSize, 0 );
     item3->Add( item38, wxSizerFlags().Center().Border(wxLEFT|wxRIGHT, 5) );
+    wxButton *lookupButton = new wxButton( parent, wxID_ANY, _("Lookup diagnostics") );
+    lookupButton->SetName( "kadLookupDiagnostics" );
+    item3->Add( lookupButton, wxSizerFlags().Center().Border(wxRIGHT, 5) );
     // Top border: matches serverListDlgUp's top row (issue #402 review:
     // "too close to the borders of the tab container").
     item0->Add( item3, wxSizerFlags().Expand().CenterVertical().Border(wxTOP, 5) );
@@ -2841,7 +2845,10 @@ item9->SetName("kadScope");
     item10->Add( item17, wxSizerFlags().CenterVertical().Border(wxLEFT, 5) );
     item7->Add( item10, wxSizerFlags().Expand().Border(wxLEFT|wxRIGHT|wxTOP, 5) );
     item2->Add( item7, wxSizerFlags(1).Expand() );
-    item0->Add( item2, wxSizerFlags(1).Expand() );
+    item0->Add( item2, wxSizerFlags(3).Expand() );
+
+    CKadContactHistogram *histogram = new CKadContactHistogram(parent);
+    item0->Add(histogram, wxSizerFlags().Expand().Border(wxALL, parent->FromDIP(5)));
 
     // Bootstrap-from-node row, full width below the graph -- mirrors serverListDlgUp's "Add server
     // manually" row: a single IP field, not eD2k's four-octet split, plus a port field and the

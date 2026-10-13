@@ -660,11 +660,13 @@ public:
 		}
 
 		if (m_sendBuffer.load(std::memory_order_acquire)) {
-			m_blocksWrite.store(true, std::memory_order_release);
 			// Close the lost-wakeup window with HandleSend: the old send may have
 			// completed between the first buffer check and publishing m_blocksWrite.
 			// If it did, this write is no longer blocked and can be accepted now.
-			if (m_sendBuffer.load(std::memory_order_acquire)) {
+			// These operations and HandleSend's CAS/exchange need a common seq_cst
+			// order: release/acquire alone allows both sides to miss the other's update.
+			m_blocksWrite.store(true, std::memory_order_seq_cst);
+			if (m_sendBuffer.load(std::memory_order_seq_cst)) {
 				AddDebugLogLineF(logAsio,
 					CFormat("Write blocks %d %p %s") % nbytes % m_sendBuffer.load() %
 						m_IP);
@@ -927,8 +929,8 @@ private:
 		// Atomically clear m_sendBuffer only if it still points to the buffer we just finished
 		// sending. A racing Write() on the throttler thread may have already swapped in a new
 		// buffer.
-		m_sendBuffer.compare_exchange_strong(sentBuffer, nullptr, std::memory_order_release);
-		const bool writeWasBlocked = m_blocksWrite.exchange(false, std::memory_order_acq_rel);
+		m_sendBuffer.compare_exchange_strong(sentBuffer, nullptr, std::memory_order_seq_cst);
+		const bool writeWasBlocked = m_blocksWrite.exchange(false, std::memory_order_seq_cst);
 
 		CLibSocket *wrapper = m_libSocket.load(std::memory_order_acquire);
 		if (!wrapper) {

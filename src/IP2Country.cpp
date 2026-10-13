@@ -30,21 +30,27 @@
 #include "Preferences.h" // For thePrefs
 #include "CFile.h"       // For CPath
 #include "HTTPDownload.h"
-#include "GetTickCount.h"
 #include "Logger.h"               // For AddLogLineM()
 #include <common/Format.h>        // For CFormat()
 #include "common/FileFunctions.h" // For UnpackArchive
 
 #include <wx/intl.h>
 
+#include <ctime>
+
 #include "IP2Country.h"
 
 #include "NetworkFunctions.h" // Uint32toStringIP
 #include "geoip/MaxMindDBDatabase.h"
 
+static uint64_t ScheduleNow()
+{
+	return static_cast<uint64_t>(time(nullptr));
+}
+
 CIP2Country::CIP2Country(const wxString &configDir)
 : m_db(new CMaxMindDBDatabase())
-, m_updateSchedule(GetTickCount64())
+, m_updateSchedule(ScheduleNow())
 , m_TriedPreviousMonth(false)
 , m_ManualUpdate(false)
 {
@@ -110,7 +116,7 @@ void CIP2Country::Update(bool manualUpdate, bool showProgress)
 		m_ManualUpdate = m_ManualUpdate || manualUpdate;
 		return;
 	}
-	m_updateSchedule.RecordAttempt(GetTickCount64());
+	m_updateSchedule.RecordAttempt(ScheduleNow());
 	m_TriedPreviousMonth = false;
 	m_ManualUpdate = manualUpdate;
 	m_showProgress = showProgress;
@@ -119,7 +125,7 @@ void CIP2Country::Update(bool manualUpdate, bool showProgress)
 
 void CIP2Country::Process()
 {
-	if (m_updateSchedule.IsDue(GetTickCount64(),
+	if (m_updateSchedule.IsDue(ScheduleNow(),
 		    thePrefs::IsGeoIPEnabled(),
 		    thePrefs::IsGeoIPAutoUpdate(),
 		    m_downloading)) {

@@ -7,12 +7,13 @@
 
 #include <cstdint>
 
-// Uses the core's monotonic milliseconds, independent of provider release dates
-// and wall-clock adjustments. Record attempts, including failures, to avoid retry storms.
+// Wall-clock seconds, as in the daily version check: CLOCK_MONOTONIC stops while Linux is
+// suspended. A clock jump wraps the unsigned difference into at most one early check.
+// Attempts, including failures, restart the interval to avoid retry storms.
 class CGeoIPUpdateSchedule
 {
 public:
-	static constexpr uint64_t Interval = 7ULL * 24 * 60 * 60 * 1000;
+	static constexpr uint64_t Interval = 7ULL * 24 * 60 * 60;
 	explicit CGeoIPUpdateSchedule(uint64_t now = 0)
 	: m_lastAttempt(now)
 	{

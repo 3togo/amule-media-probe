@@ -40,6 +40,14 @@ TEST(GeoIPUpdateSchedule, AttemptsResetIntervalIncludingFailuresAndManualUpdates
 	ASSERT_TRUE(schedule.IsDue(attempt + CGeoIPUpdateSchedule::Interval, true, true, false));
 }
 
+TEST(GeoIPUpdateSchedule, ClockJumpBackProducesOneAttemptThenWaits)
+{
+	CGeoIPUpdateSchedule schedule(CGeoIPUpdateSchedule::Interval);
+	ASSERT_TRUE(schedule.IsDue(1000, true, true, false));
+	schedule.RecordAttempt(1000);
+	ASSERT_FALSE(schedule.IsDue(1000 + CGeoIPUpdateSchedule::Interval - 1, true, true, false));
+}
+
 TEST(GeoIPUpdateSchedule, LongGapProducesOneAttemptThenWaits)
 {
 	CGeoIPUpdateSchedule schedule;

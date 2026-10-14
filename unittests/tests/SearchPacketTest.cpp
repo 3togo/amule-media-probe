@@ -285,3 +285,18 @@ TEST(SearchPacket, InvalidBooleanInputStillFailsWithBitrate)
 		}
 	}
 }
+
+TEST(SearchPacket, RejectedQueryDoesNotLeakParserStateIntoNextSearch)
+{
+	CSearchList::CSearchParams params;
+	params.searchString = "song OR";
+	params.strKeyword = "song";
+	params.minBitrateKbps = 320;
+	ASSERT_TRUE(CSearchPacketTestFixture::Rejected(params, KadSearch));
+	params.searchString = "live";
+	params.minBitrateKbps = 0;
+	ASSERT_TRUE(CSearchPacketTestFixture::Packet(params, GlobalSearch) == Text("live"));
+	params.minBitrateKbps = 256;
+	params.strKeyword = "live";
+	ASSERT_TRUE(CSearchPacketTestFixture::Packet(params, KadSearch) == Bitrate(256));
+}

@@ -110,7 +110,8 @@ bool LaunchWithPlayer(const wxString &player, const CPath &path, wxWindow *paren
 					    "Programs installed on the host are not directly available "
 					    "here. Completed files can still open with the desktop's default "
 					    "application; previewing an unfinished download needs a "
-					    "player inside the sandbox.")) %
+					    "player the sandbox can run, such as a self-contained player "
+					    "saved in your home folder.")) %
 					  parts[0]
 				: CFormat(_("The configured video player was not found: %s")) % parts[0];
 		Fail(message, parent, reportModally);

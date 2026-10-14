@@ -2406,6 +2406,10 @@ if (ENABLE_INTEGRATION_TESTS AND BUILD_DAEMON AND UNIX AND NOT APPLE)
 		add_test (NAME KadDistributionECTest COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/KadDistributionECTest.py $<TARGET_FILE:amuled>)
 		add_test (NAME KadPopulatedDistributionECTest COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/KadDistributionECTest.py $<TARGET_FILE:amuled> --populated)
 		set_tests_properties (KadPopulatedDistributionECTest PROPERTIES SKIP_RETURN_CODE 77)
+		add_test (NAME AmuleApiRestartIntegrationTest
+			COMMAND ${Python3_EXECUTABLE}
+				${CMAKE_CURRENT_SOURCE_DIR}/AmuleApiRestartIntegrationTest.py $<TARGET_FILE:amuled>
+		)
 		add_test (NAME LogfilePathIntegrationTest
 			COMMAND ${Python3_EXECUTABLE}
 				${CMAKE_CURRENT_SOURCE_DIR}/LogfilePathIntegrationTest.py $<TARGET_FILE:amuled>
@@ -2655,3 +2659,24 @@ if (ENABLE_IP2COUNTRY)
 	target_link_libraries (MaxMindDBUpdateTest muleunit mulecommon MaxMindDB::Shared)
 	add_test (NAME MaxMindDBUpdateTest COMMAND MaxMindDBUpdateTest)
 endif()
+
+# Retry scheduling for the core-supervised API child.
+add_executable (AmuleApiRestartTest AmuleApiRestartTest.cpp)
+add_test (NAME AmuleApiRestartTest COMMAND AmuleApiRestartTest)
+target_include_directories (AmuleApiRestartTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries (AmuleApiRestartTest muleunit mulecommon)
+
+# Pipe draining and process-observer lifetime without starting the application.
+add_executable (AmuleApiProcessTest
+	AmuleApiProcessTest.cpp
+	${CMAKE_SOURCE_DIR}/src/TerminationProcessAmuleApi.cpp
+	${CMAKE_SOURCE_DIR}/src/TerminationProcess.cpp
+	${CMAKE_SOURCE_DIR}/src/LoggerConsole.cpp
+)
+add_application_test_stubs (AmuleApiProcessTest)
+target_compile_definitions (AmuleApiProcessTest PRIVATE AMULE_DAEMON wxUSE_GUI=0)
+target_include_directories (AmuleApiProcessTest PRIVATE
+	${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/src/include
+)
+target_link_libraries (AmuleApiProcessTest muleunit mulecommon wxWidgets::BASE)
+add_test (NAME AmuleApiProcessTest COMMAND AmuleApiProcessTest)

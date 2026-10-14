@@ -113,6 +113,24 @@ target_include_directories (KadFirewallRecheckTest PRIVATE
 )
 target_link_libraries (KadFirewallRecheckTest muleunit mulecommon)
 
+# Firewall-check replies: each peer we asked answers each kind once.
+add_executable (KadFirewallCheckRequestsTest KadFirewallCheckRequestsTest.cpp)
+add_test (NAME KadFirewallCheckRequestsTest COMMAND KadFirewallCheckRequestsTest)
+target_include_directories (KadFirewallCheckRequestsTest PRIVATE
+	${CMAKE_SOURCE_DIR}/src
+	${CMAKE_SOURCE_DIR}/src/include
+)
+target_link_libraries (KadFirewallCheckRequestsTest muleunit mulecommon)
+
+# Our Kad public IP: a change needs reports from two /24s.
+add_executable (KadPublicIPVoteTest KadPublicIPVoteTest.cpp)
+add_test (NAME KadPublicIPVoteTest COMMAND KadPublicIPVoteTest)
+target_include_directories (KadPublicIPVoteTest PRIVATE
+	${CMAKE_SOURCE_DIR}/src
+	${CMAKE_SOURCE_DIR}/src/include
+)
+target_link_libraries (KadPublicIPVoteTest muleunit mulecommon)
+
 # Production UDP verification queries with a deterministic clock.
 add_executable (KadUDPFirewallIntegrationTest
 	KadUDPFirewallIntegrationTest.cpp
@@ -394,7 +412,8 @@ target_link_libraries (UtpSocketTransportTest
 
 add_executable (LibSocketTransportTest
 	LibSocketTransportTest.cpp
-	${CMAKE_SOURCE_DIR}/src/LibSocket.cpp
+	# The test includes LibSocket.cpp so it can drain the process-global io_context
+	# after joining CAsioService, including completions that intentionally queue no event.
 	# Same reason NetworkFunctionsTest compiles it: LibSocket.cpp includes
 	# LibSocketAsio.cpp, whose Windows interface-resolution path calls
 	# DetectNetworkInterfaces(), and this target does not link mulesocket.
@@ -2343,6 +2362,10 @@ if (ENABLE_INTEGRATION_TESTS AND BUILD_DAEMON AND UNIX AND NOT APPLE)
 			COMMAND ${Python3_EXECUTABLE}
 				${CMAKE_CURRENT_SOURCE_DIR}/CategoryTagECTest.py $<TARGET_FILE:amuled>
 		)
+		add_test (NAME KadSourceTagsECTest
+			COMMAND ${Python3_EXECUTABLE}
+				${CMAKE_CURRENT_SOURCE_DIR}/KadSourceTagsECTest.py $<TARGET_FILE:amuled>
+		)
 		add_test (NAME KadLookupECTest
 			COMMAND ${Python3_EXECUTABLE}
 				${CMAKE_CURRENT_SOURCE_DIR}/KadLookupECTest.py $<TARGET_FILE:amuled>
@@ -2356,6 +2379,13 @@ if (ENABLE_INTEGRATION_TESTS AND BUILD_DAEMON AND UNIX AND NOT APPLE)
 			COMMAND ${Python3_EXECUTABLE}
 				${CMAKE_CURRENT_SOURCE_DIR}/ShareWatcherMoveIntegrationTest.py $<TARGET_FILE:amuled>
 		)
+		if (BUILD_AMULEAPI)
+			add_test (NAME ChatCaptchaIntegrationTest
+				COMMAND ${Python3_EXECUTABLE}
+					${CMAKE_SOURCE_DIR}/unittests/curl-tests/amuleapi/chat-captcha-peer.py
+					--amuled $<TARGET_FILE:amuled> --amuleapi $<TARGET_FILE:amuleapi>
+			)
+		endif ()
 		add_test (NAME KnownHistoryIntegrationTest
 			COMMAND ${Python3_EXECUTABLE}
 				${CMAKE_CURRENT_SOURCE_DIR}/KnownHistoryIntegrationTest.py $<TARGET_FILE:amuled>

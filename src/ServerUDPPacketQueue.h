@@ -27,6 +27,14 @@ public:
 	static constexpr size_t MaxPackets = 1024;
 	static constexpr size_t MaxBytes = 1024 * 1024;
 
+	CServerUDPPacketQueue() = default;
+	// This queue belongs to one socket. Keep the byte counter and packet list
+	// together rather than allowing a default move to leave a stale counter.
+	CServerUDPPacketQueue(const CServerUDPPacketQueue &) = delete;
+	CServerUDPPacketQueue &operator=(const CServerUDPPacketQueue &) = delete;
+	CServerUDPPacketQueue(CServerUDPPacketQueue &&) = delete;
+	CServerUDPPacketQueue &operator=(CServerUDPPacketQueue &&) = delete;
+
 	// Takes ownership even on rejection; retain the front packet for its DNS callback.
 	bool Push(ServerUDPPacket item)
 	{

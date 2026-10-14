@@ -25,6 +25,7 @@
 // GUI rendering regression test. CI requires a display; local headless runs may skip.
 
 #include <wx/app.h>
+#include <wx/log.h>
 #include <wx/frame.h>
 #include <wx/mstream.h>
 #include <wx/image.h>
@@ -63,6 +64,9 @@ int main(int argc, char **argv)
 		wxEntryCleanup();
 		return 1;
 	}
+	// GUI log targets can display modal dialogs on Windows, hiding the error
+	// until CTest kills the process. Keep diagnostics in the captured test output.
+	delete wxLog::SetActiveTarget(new wxLogStderr());
 	wxInitAllImageHandlers();
 	wxArtProvider::Push(new CamuleArtProvider);
 	int count = 0, flags = 0, menus = 0;

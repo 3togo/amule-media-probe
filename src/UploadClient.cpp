@@ -466,7 +466,7 @@ uint32 CUpDownClient::SendBlockData()
 			// see the reset counter before the session total includes those bytes.
 			wxMutexLocker lockBlockLists(m_blockListLock);
 			sentBytesPayload = s->GetSentPayloadSinceLastCallAndReset();
-			m_nCurQueueSessionPayloadUp += sentBytesPayload;
+			m_nCurQueueSessionPayloadUp += static_cast<sint64>(sentBytesPayload);
 		}
 
 		if (theApp->uploadqueue->CheckForTimeOver(this)) {

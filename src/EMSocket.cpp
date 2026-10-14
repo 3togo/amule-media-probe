@@ -415,7 +415,11 @@ uint64 CEMSocket::GetSentPayloadSinceLastCallAndReset()
 void CEMSocket::SetUploadBufferTarget(uint32 payload)
 {
 	std::lock_guard<std::mutex> lock(m_sendLocker);
-	m_uploadRefill.SetTarget(payload);
+	if (m_uploadRefill.SetTarget(payload) && theApp->uploadDiskIOThread) {
+		// PrepareRead's payload snapshot precedes this lock. If the target grew
+		// above the remaining queue, keep a refill pending for a fresh snapshot.
+		theApp->uploadDiskIOThread->SocketNeedsMoreData();
+	}
 }
 
 // Non-resetting peek at bytes sent since the last GetSentPayloadSinceLastCallAndReset(). Used by

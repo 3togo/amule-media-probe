@@ -77,3 +77,36 @@ TEST(UploadRefill, TruncationKeepsTheCurrentPacketInTheCount)
 	refill.Discard(block);
 	ASSERT_TRUE(refill.Complete(block));
 }
+
+TEST(UploadRefill, RaisingTargetAfterDrainRequestsAnotherWorkerPass)
+{
+	UploadRefill refill;
+	refill.SetTarget(block + 1);
+	refill.Queue(11 * block);
+	// The worker's fast-slot snapshot still sees eleven blocks. A completion then
+	// drains two blocks while the old slow-slot target is installed: no crossing.
+	ASSERT_FALSE(refill.Complete(2 * block));
+	ASSERT_TRUE(refill.SetTarget(10 * block + 1));
+	// Coalesce repeated checks while the refill is in progress.
+	ASSERT_FALSE(refill.SetTarget(10 * block + 1));
+	refill.Queue(2 * block);
+	ASSERT_TRUE(refill.Complete(block));
+}
+
+TEST(UploadRefill, RaisingTargetWithEnoughQueuedPayloadWaitsForCrossing)
+{
+	UploadRefill refill;
+	refill.SetTarget(block + 1);
+	refill.Queue(11 * block);
+	ASSERT_FALSE(refill.SetTarget(10 * block + 1));
+	ASSERT_TRUE(refill.Complete(block));
+}
+
+TEST(UploadRefill, LoweringTargetDoesNotScheduleAnUnneededRefill)
+{
+	UploadRefill refill;
+	refill.SetTarget(10 * block + 1);
+	refill.Queue(2 * block);
+	ASSERT_FALSE(refill.SetTarget(block + 1));
+	ASSERT_TRUE(refill.Complete(block));
+}

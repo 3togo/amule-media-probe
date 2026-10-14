@@ -11,7 +11,14 @@
 class UploadRefill
 {
 public:
-	void SetTarget(uint32_t target) { m_target = target; }
+	bool SetTarget(uint32_t target)
+	{
+		// A completion may have drained below a larger target before it was installed.
+		// Recheck on another worker pass rather than waiting for a future crossing.
+		const bool needsRefill = target > m_target && m_queued < target;
+		m_target = target;
+		return needsRefill;
+	}
 	void Queue(uint32_t payload) { m_queued += payload; }
 	bool Complete(uint32_t payload)
 	{

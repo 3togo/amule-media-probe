@@ -2742,7 +2742,7 @@ msgstr ""
 
 #: src/FileLaunch.cpp
 #, c-format
-msgid "The configured video player is unavailable inside aMule's Flatpak sandbox: %s. Programs installed on the host are not directly available here."
+msgid "The configured video player is unavailable inside aMule's Flatpak sandbox: %s. Programs installed on the host are not directly available here. Completed files can still open with the desktop's default application; previewing an unfinished download needs a player inside the sandbox."
 msgstr ""
 
 #: src/FileLaunch.cpp

@@ -26,7 +26,6 @@
 
 #include <wx/filename.h> // Needed for wxFileName::IsFileExecutable
 #include <wx/msgdlg.h>   // Needed for wxMessageBox
-#include <wx/tokenzr.h>  // Needed for searching the sandbox's PATH
 #include <wx/utils.h>    // Needed for wxExecute, wxLaunchDefaultApplication
 
 #include <common/Format.h> // Needed for CFormat
@@ -35,6 +34,8 @@
 #include "MacAppHelper.h" // Needed for mac_reveal_in_finder
 #endif
 
+#include "Flatpak.h"
+#include "PlayerExecutable.h"
 #include "ExternalCommand.h" // Needed for template expansion and RunDetached
 #ifdef CLIENT_GUI
 #include "amule.h" // Needed for theApp->glob_prefs (ApplyPathMapping)
@@ -57,35 +58,6 @@ void Fail(const wxString &message, wxWindow *parent, bool reportModally)
 	if (reportModally && parent != nullptr) {
 		wxMessageBox(message, _("File preview"), wxOK | wxICON_EXCLAMATION, parent);
 	}
-}
-
-bool IsPlayerAvailable(const wxString &program)
-{
-	// execvp searches PATH only when the command has no slash.
-	if (program.Find('/') != wxNOT_FOUND) {
-		return wxFileName::FileExists(program) && wxFileName::IsFileExecutable(program);
-	}
-
-	wxString searchPath;
-	if (!wxGetEnv("PATH", &searchPath)) {
-		// With PATH unset, execvp uses a platform default. Let it resolve the
-		// command rather than incorrectly rejecting an available player.
-		return true;
-	}
-	if (searchPath.IsEmpty()) {
-		searchPath = ".";
-	}
-	wxStringTokenizer directories(searchPath, ":", wxTOKEN_RET_EMPTY_ALL);
-	while (directories.HasMoreTokens()) {
-		const wxString directory = directories.GetNextToken();
-		// An empty PATH entry means the current directory. Keep searching when a
-		// matching file is not executable, just as execvp does.
-		const wxString candidate = wxFileName(directory, program).GetFullPath();
-		if (wxFileName::FileExists(candidate) && wxFileName::IsFileExecutable(candidate)) {
-			return true;
-		}
-	}
-	return false;
 }
 
 // Hand the path to the user's configured player.
@@ -126,19 +98,21 @@ bool LaunchWithPlayer(const wxString &player, const CPath &path, wxWindow *paren
 	//
 	// In Flatpak, also check bare names so a missing host player gets a useful
 	// explanation before wxExecute forks. Other builds retain their usual PATH lookup.
-	wxString flatpakId;
-	const bool inFlatpak = wxGetEnv("FLATPAK_ID", &flatpakId) && !flatpakId.IsEmpty();
+	const bool inFlatpak = InFlatpak();
 	const bool unavailable =
 		inFlatpak ? !IsPlayerAvailable(parts[0])
 			  : parts[0].StartsWith("/") && !wxFileName::IsFileExecutable(parts[0]);
 	if (unavailable) {
 		const wxString message =
-			inFlatpak ? CFormat(_("The configured video player is unavailable inside aMule's "
-					      "Flatpak sandbox: %s. "
-					      "Programs installed on the host are not directly available "
-					      "here.")) %
-					    parts[0]
-				  : CFormat(_("The configured video player was not found: %s")) % parts[0];
+			inFlatpak
+				? CFormat(_("The configured video player is unavailable inside aMule's "
+					    "Flatpak sandbox: %s. "
+					    "Programs installed on the host are not directly available "
+					    "here. Completed files can still open with the desktop's default "
+					    "application; previewing an unfinished download needs a "
+					    "player inside the sandbox.")) %
+					  parts[0]
+				: CFormat(_("The configured video player was not found: %s")) % parts[0];
 		Fail(message, parent, reportModally);
 		return false;
 	}

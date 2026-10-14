@@ -418,7 +418,7 @@ void CServerUDPSocket::SendPacket(
 		item.port = host->GetObfuscationPortUDP();
 
 		CMemFile encryptedpacket(pRawPacket + 2, uRawPacketSize - 2);
-		item.packet.reset(new CPacket(encryptedpacket, pRawPacket[0], pRawPacket[1]));
+		item.packet = std::make_unique<CPacket>(encryptedpacket, pRawPacket[0], pRawPacket[1]);
 		delete[] pRawPacket;
 
 		if (delPacket) {
@@ -433,7 +433,7 @@ void CServerUDPSocket::SendPacket(
 		if (delPacket) {
 			item.packet.reset(packet);
 		} else {
-			item.packet.reset(new CPacket(*packet));
+			item.packet = std::make_unique<CPacket>(*packet);
 		}
 	}
 
@@ -524,8 +524,13 @@ void CServerUDPSocket::SendQueue()
 				logServerUDP, "Sending a UDP packet to a server: " + update->GetAddress());
 			// Don't encrypt, as this is already either encrypted or refused to encrypt.
 			ServerUDPPacket outgoing = m_queue.Pop();
-			CMuleUDPSocket::SendPacket(
-				outgoing.packet.release(), outgoing.ip, outgoing.port, false, NULL, false, 0);
+			CMuleUDPSocket::SendPacket(outgoing.packet.release(),
+				outgoing.ip,
+				outgoing.port,
+				false,
+				nullptr,
+				false,
+				0);
 		} else {
 			AddDebugLogLineN(logServerUDP,
 				"Sending a UDP packet to a server no in serverlist: " +

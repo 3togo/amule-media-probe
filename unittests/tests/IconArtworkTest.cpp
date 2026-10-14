@@ -43,19 +43,41 @@
 #include <cstring>
 #include <cstdlib>
 
-// Fail immediately so errors from initialization, rendering and cleanup all
-// remain visible to CTest, without entering a modal dialog or continuing a hang.
+// Keep diagnostics visible to CTest without opening modal dialogs. Optional
+// GUI startup may skip; once initialized, every warning or error is fatal.
 class FailingLogStderr : public wxLogStderr
 {
+public:
+	explicit FailingLogStderr(bool failImmediately = true)
+	: m_failImmediately(failImmediately)
+	{
+	}
+
+	void FinishInitialization()
+	{
+		m_failImmediately = true;
+		if (m_failed) {
+			Flush();
+			std::exit(EXIT_FAILURE);
+		}
+	}
+
 protected:
 	void DoLogRecord(wxLogLevel level, const wxString &message, const wxLogRecordInfo &info) override
 	{
 		wxLogStderr::DoLogRecord(level, message, info);
 		if (level == wxLOG_Error || level == wxLOG_Warning) {
-			Flush();
-			std::exit(EXIT_FAILURE);
+			m_failed = true;
+			if (m_failImmediately) {
+				Flush();
+				std::exit(EXIT_FAILURE);
+			}
 		}
 	}
+
+private:
+	bool m_failImmediately;
+	bool m_failed = false;
 };
 
 static void IconArtworkAssertHandler(
@@ -79,13 +101,16 @@ void require(bool ok, const char *message)
 }
 int main(int argc, char **argv)
 {
-	// Cover wx startup too, before any GUI log target can show a dialog.
-	delete wxLog::SetActiveTarget(new FailingLogStderr());
+	// Cover startup without turning an optional headless skip into a failure.
+	const bool requireGui = std::getenv("AMULE_ICON_TEST_REQUIRE_GUI") != nullptr;
+	auto *log = new FailingLogStderr(requireGui);
+	delete wxLog::SetActiveTarget(log);
 	wxSetAssertHandler(IconArtworkAssertHandler);
 	if (!wxEntryStart(argc, argv)) {
 		std::cerr << "GUI initialization failed: no native rendering checks ran\n";
-		return std::getenv("AMULE_ICON_TEST_REQUIRE_GUI") ? 1 : 77;
+		return requireGui ? 1 : 77;
 	}
+	log->FinishInitialization();
 	if (!wxTheApp->CallOnInit()) {
 		wxEntryCleanup();
 		return 1;

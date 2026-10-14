@@ -1,7 +1,9 @@
 # Exercise the real wxGTK startup failure even on CI runners with a display.
 # CTest controls the timeout, as it does for the native rendering tests.
 foreach (require_gui IN ITEMS OFF ON)
-	set (environment --unset=DISPLAY --unset=WAYLAND_DISPLAY
+	# Unsetting WAYLAND_DISPLAY still allows GTK to use wayland-0. Force
+	# X11 so the missing DISPLAY guarantees startup fails on desktops too.
+	set (environment GDK_BACKEND=x11 --unset=DISPLAY --unset=WAYLAND_DISPLAY
 		--unset=AMULE_ICON_TEST_REQUIRE_GUI)
 	set (expected_result 77)
 	if (require_gui)

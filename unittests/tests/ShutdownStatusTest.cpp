@@ -4,6 +4,7 @@
 
 #include "InternalEvents.h"
 #include "ShutdownStatus.h"
+#include "CamuleArtProvider.h"
 
 #include <iostream>
 #include <stdexcept>
@@ -11,7 +12,12 @@
 class ShutdownStatusTestApp : public wxApp
 {
 public:
-	bool OnInit() override { return true; }
+	bool OnInit() override
+	{
+		wxInitAllImageHandlers();
+		wxArtProvider::Push(new CamuleArtProvider());
+		return true;
+	}
 };
 
 wxIMPLEMENT_APP_NO_MAIN(ShutdownStatusTestApp);
@@ -42,6 +48,17 @@ int main(int argc, char **argv)
 			wxFrame anchor(nullptr, wxID_ANY, "Shutdown status regression test");
 			anchor.Show();
 			wxTheApp->SetTopWindow(&anchor);
+			// Startup still permits dismissal; shutdown must keep the same splash
+			// visible until its owner finishes saving and destroys it.
+			{
+				CSplashScreen startup(nullptr);
+				startup.Show();
+				startup.Close();
+				if (startup.IsShown()) {
+					std::cerr << "Startup splash dismissal changed\n";
+					result = 1;
+				}
+			}
 			wxTimer background;
 			background.Bind(wxEVT_TIMER, [&](wxTimerEvent &) { timerRan = true; });
 			wxTimer trigger;

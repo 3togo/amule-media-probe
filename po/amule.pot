@@ -8077,6 +8077,10 @@ msgstr ""
 msgid "A4AF"
 msgstr ""
 
+#: src/SplashScreen.cpp
+msgid "Closing aMule"
+msgstr ""
+
 #: src/Statistics.cpp
 #, c-format
 msgid "Uploaded Data (Session (Total)): %s"
@@ -9773,12 +9777,4 @@ msgstr ""
 
 #: src/kademlia/kademlia/Indexed.cpp
 msgid "Kad could not save an index. The previous copy of that file was preserved."
-msgstr ""
-
-#: src/ShutdownStatus.h
-msgid "Closing aMule"
-msgstr ""
-
-#: src/ShutdownStatus.h
-msgid "Please wait while aMule saves your data and closes."
 msgstr ""

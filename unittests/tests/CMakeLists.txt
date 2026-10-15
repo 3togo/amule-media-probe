@@ -2544,12 +2544,20 @@ endif()
 
 # Shutdown repainting must not dispatch callbacks against partially destroyed core objects.
 if (TARGET wxWidgets::CORE)
-	add_executable (ShutdownStatusTest ShutdownStatusTest.cpp)
+	add_executable (ShutdownStatusTest
+		ShutdownStatusTest.cpp
+		${CMAKE_SOURCE_DIR}/src/SplashScreen.cpp
+		${CMAKE_SOURCE_DIR}/src/CamuleArtProvider.cpp
+		${CMAKE_SOURCE_DIR}/src/icons/icon_data.c
+		${CMAKE_SOURCE_DIR}/src/LoggerConsole.cpp
+	)
 	if (WIN32)
 		target_sources (ShutdownStatusTest PRIVATE DialogLayoutTest.rc)
 	endif()
-	target_include_directories (ShutdownStatusTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
-	target_link_libraries (ShutdownStatusTest PRIVATE wxWidgets::CORE)
+	target_include_directories (ShutdownStatusTest PRIVATE
+		${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/src/libs ${CMAKE_BINARY_DIR}/src/libs
+		${CMAKE_SOURCE_DIR}/src/include ${CMAKE_BINARY_DIR})
+	target_link_libraries (ShutdownStatusTest PRIVATE wxWidgets::CORE mulecommon)
 	add_test (NAME ShutdownStatusTest COMMAND ShutdownStatusTest)
 	set_tests_properties (ShutdownStatusTest PROPERTIES SKIP_RETURN_CODE 77)
 endif()

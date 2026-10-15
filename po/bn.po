@@ -471,6 +471,11 @@ msgstr "Kad বুটস্ট্র্যাপ নোড (nodes.dat)"
 
 #: src/amule.cpp
 #, c-format
+msgid "Not starting %s: it is neither next to aMule nor on PATH."
+msgstr ""
+
+#: src/amule.cpp
+#, c-format
 msgid "web server running on pid %d"
 msgstr "ওয়েব সার্ভার pid %d-এ চলছে"
 
@@ -489,13 +494,31 @@ msgid "Could not write the amuleapi EC token to %s; amuleapi will fall back to i
 msgstr ""
 
 #: src/amule.cpp
+msgid "An exception occurred while launching amuleapi."
+msgstr ""
+
+#: src/amule.cpp
 #, c-format
 msgid "amuleapi running on pid %d"
 msgstr "amuleapi pid %d-এ চলছে"
 
 #: src/amule.cpp
+msgid "Could not launch amuleapi during automatic restart."
+msgstr ""
+
+#: src/amule.cpp
 msgid "You requested to run amuleapi on startup, but the amuleapi binary cannot be run. Please install the package containing aMule's REST API server, or build aMule from source with -DBUILD_AMULEAPI=YES and install it."
 msgstr "আপনি স্টার্টআপে amuleapi চালানোর অনুরোধ করেছেন, কিন্তু amuleapi বাইনারি চালানো যাচ্ছে না। অনুগ্রহ করে aMule-এর REST API সার্ভার ধারণকারী প্যাকেজ ইনস্টল করুন, অথবা -DBUILD_AMULEAPI=YES সহ সোর্স থেকে aMule বিল্ড করে ইনস্টল করুন।"
+
+#: src/amule.cpp
+#, fuzzy, c-format
+msgid "Could not remove the amuleapi EC token file: %s"
+msgstr "amuleapi পাসওয়ার্ড সংরক্ষণ করা যায়নি: %s"
+
+#: src/amule.cpp
+#, c-format
+msgid "amuleapi will restart in %u seconds."
+msgstr ""
 
 #: src/amule.cpp
 #, c-format
@@ -2346,6 +2369,11 @@ msgid "Cannot cancel a finished download: %s"
 msgstr "ডাউনলোড সম্পন্ন: %s"
 
 #: src/ExternalConn.cpp
+#, c-format
+msgid "No such category: %u"
+msgstr ""
+
+#: src/ExternalConn.cpp
 msgid "OOPS! OpCode processing error!"
 msgstr "ওহো! OpCode প্রক্রিয়াকরণ ত্রুটি!"
 
@@ -2804,6 +2832,11 @@ msgstr "ফাইল প্রিভিউ"
 #: src/FileLaunch.cpp
 #, c-format
 msgid "Media-player command '%s' was not run: %s"
+msgstr ""
+
+#: src/FileLaunch.cpp
+#, c-format
+msgid "The configured video player is unavailable inside aMule's Flatpak sandbox: %s. Programs installed on the host are not directly available here. Completed files can still open with the desktop's default application; previewing an unfinished download needs a player the sandbox can run, such as a self-contained player saved in your home folder."
 msgstr ""
 
 #: src/FileLaunch.cpp
@@ -3881,6 +3914,11 @@ msgstr "ত্রুটি: "
 #: src/Logger.cpp
 msgid "WARNING: "
 msgstr "সতর্কতা: "
+
+#: src/MediaProbe.cpp
+#, c-format
+msgid "Media metadata: not using %s, because another user owns it or a folder above it."
+msgstr ""
 
 #: src/MediaProbe.cpp
 msgid "Media metadata: no ffprobe binary found. Install ffmpeg, or set the ffprobe path in preferences; length, bitrate and codec will not be extracted."
@@ -7118,6 +7156,11 @@ msgstr ""
 #, c-format
 msgid "Only saving the first %u of %u results for search \"%s\"."
 msgstr ""
+
+#: src/SearchList.cpp
+#, fuzzy, c-format
+msgid "IO error while saving %s: %s"
+msgstr "%s ফাইল পড়ার সময় IO ত্রুটি: %s"
 
 #: src/SearchList.cpp
 msgid "WARNING: Stored search list corrupted, contains invalid header."

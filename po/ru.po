@@ -15,7 +15,7 @@ msgstr ""
 "Project-Id-Version: aMule\n"
 "Report-Msgid-Bugs-To: https://github.com/amule-org/amule/issues\n"
 "POT-Creation-Date: 2026-10-09 12:39+0000\n"
-"PO-Revision-Date: 2026-10-13 14:07+0000\n"
+"PO-Revision-Date: 2026-10-14 20:19+0000\n"
 "Last-Translator: Radist Morse <radist.morse@gmail.com>\n"
 "Language-Team: Russian <kde-russian@lists.kde.ru>\n"
 "Language: ru\n"
@@ -505,6 +505,11 @@ msgstr "Узлы начальной загрузки Kad (nodes.dat)"
 
 #: src/amule.cpp
 #, c-format
+msgid "Not starting %s: it is neither next to aMule nor on PATH."
+msgstr ""
+
+#: src/amule.cpp
+#, c-format
 msgid "web server running on pid %d"
 msgstr "веб-сервер работает с pid %d"
 
@@ -523,13 +528,31 @@ msgid "Could not write the amuleapi EC token to %s; amuleapi will fall back to i
 msgstr "Не удалось записать токен EC amuleapi в %s; amuleapi переключится на настроенный пароль."
 
 #: src/amule.cpp
+msgid "An exception occurred while launching amuleapi."
+msgstr ""
+
+#: src/amule.cpp
 #, c-format
 msgid "amuleapi running on pid %d"
 msgstr "amuleapi запущен с pid %d"
 
 #: src/amule.cpp
+msgid "Could not launch amuleapi during automatic restart."
+msgstr ""
+
+#: src/amule.cpp
 msgid "You requested to run amuleapi on startup, but the amuleapi binary cannot be run. Please install the package containing aMule's REST API server, or build aMule from source with -DBUILD_AMULEAPI=YES and install it."
 msgstr "Вы запросили запуск amuleapi при старте, но исполняемый файл amuleapi не может быть запущен. Установите пакет, содержащий REST API-сервер aMule, либо соберите aMule из исходного кода с параметром -DBUILD_AMULEAPI=YES и установите его."
+
+#: src/amule.cpp
+#, fuzzy, c-format
+msgid "Could not remove the amuleapi EC token file: %s"
+msgstr "Не удалось сохранить пароль amuleapi: %s"
+
+#: src/amule.cpp
+#, c-format
+msgid "amuleapi will restart in %u seconds."
+msgstr ""
 
 #: src/amule.cpp
 #, c-format
@@ -1209,19 +1232,19 @@ msgstr "Готов"
 
 #: src/amule-remote-gui.cpp
 msgid "*** Solve the CAPTCHA and send its text as a message."
-msgstr ""
+msgstr "*** Введите код CAPTCHA и отправьте его текстом в сообщении."
 
 #: src/amule-remote-gui.cpp
 msgid "*** CAPTCHA passed; your message was delivered."
-msgstr ""
+msgstr "*** CAPTCHA пройдена; ваше сообщение доставлено."
 
 #: src/amule-remote-gui.cpp
 msgid "*** CAPTCHA failed; send another message to try again."
-msgstr ""
+msgstr "*** CAPTCHA не пройдена; отправьте новое сообщение, чтобы попробовать снова."
 
 #: src/amule-remote-gui.cpp
 msgid "*** CAPTCHA failed; no attempts remain."
-msgstr ""
+msgstr "*** CAPTCHA не пройдена; попытки исчерпаны."
 
 #: src/amule-remote-gui.cpp src/TransferWnd.cpp
 msgid "All"
@@ -2399,6 +2422,11 @@ msgid "Cannot cancel a finished download: %s"
 msgstr "Невозможно отменить завершённую загрузку: %s"
 
 #: src/ExternalConn.cpp
+#, c-format
+msgid "No such category: %u"
+msgstr "Нет такой категории: %u"
+
+#: src/ExternalConn.cpp
 msgid "OOPS! OpCode processing error!"
 msgstr "Ошибка при выполнении OpCode!"
 
@@ -2541,7 +2569,7 @@ msgstr "Пустое сообщение беседы"
 
 #: src/ExternalConn.cpp
 msgid "CAPTCHA challenge is no longer pending"
-msgstr ""
+msgstr "Запрос CAPTCHA больше не ожидает ответа"
 
 #: src/ExternalConn.cpp
 msgid "Unknown chat target"
@@ -2859,6 +2887,11 @@ msgstr "Предпросмотр файла"
 #, c-format
 msgid "Media-player command '%s' was not run: %s"
 msgstr "Команда проигрывателя медиа «%s» не была выполнена: %s"
+
+#: src/FileLaunch.cpp
+#, c-format
+msgid "The configured video player is unavailable inside aMule's Flatpak sandbox: %s. Programs installed on the host are not directly available here. Completed files can still open with the desktop's default application; previewing an unfinished download needs a player the sandbox can run, such as a self-contained player saved in your home folder."
+msgstr "Настроенный проигрыватель видео недоступен внутри песочницы Flatpak aMule: %s. Программы, установленные в системе, здесь напрямую недоступны. Завершённые файлы всё ещё можно открыть приложением по умолчанию рабочего стола; для предпросмотра незавершённой загрузки нужен проигрыватель, который может запустить песочница, например автономный проигрыватель, сохранённый в вашем домашнем каталоге."
 
 #: src/FileLaunch.cpp
 #, c-format
@@ -3933,6 +3966,11 @@ msgstr "ОШИБКА: "
 #: src/Logger.cpp
 msgid "WARNING: "
 msgstr "ПРЕДУПРЕЖДЕНИЕ: "
+
+#: src/MediaProbe.cpp
+#, c-format
+msgid "Media metadata: not using %s, because another user owns it or a folder above it."
+msgstr "Метаданные медиафайла: %s не используется, так как им или каталогом выше владеет другой пользователь."
 
 #: src/MediaProbe.cpp
 msgid "Media metadata: no ffprobe binary found. Install ffmpeg, or set the ffprobe path in preferences; length, bitrate and codec will not be extracted."
@@ -6986,7 +7024,7 @@ msgid ""
 "Add here URL's to download server.met files.\n"
 "Only one url on each line."
 msgstr ""
-"Добавьте URL для загрузки файлов server.met.\n"
+"Добавьте адреса для загрузки файлов server.met.\n"
 "По одному на строку."
 
 #: src/PrefsUnifiedDlg.cpp
@@ -7218,6 +7256,11 @@ msgstr "Сохраняются только %u последних из %u отк
 #, c-format
 msgid "Only saving the first %u of %u results for search \"%s\"."
 msgstr "Сохраняются только первые %u из %u результатов для поиска «%s»."
+
+#: src/SearchList.cpp
+#, fuzzy, c-format
+msgid "IO error while saving %s: %s"
+msgstr "Ошибка ввода/вывода при чтении файла %s: %s"
 
 #: src/SearchList.cpp
 msgid "WARNING: Stored search list corrupted, contains invalid header."
@@ -9327,7 +9370,7 @@ msgstr "Файл для хеширования"
 
 #: src/utils/aLinkCreator/src/alcframe.cpp
 msgid "Add Optional URLs for this file"
-msgstr "Добавьте возможные URL для этого файла"
+msgstr "Добавьте возможные адреса для этого файла"
 
 #: src/utils/aLinkCreator/src/alcframe.cpp
 msgid "Enter here the file you want to compute the eD2k link"
@@ -9335,7 +9378,7 @@ msgstr "Введите здесь файл для которого вы хоти
 
 #: src/utils/aLinkCreator/src/alcframe.cpp
 msgid "Enter here the URL you want to add to the eD2k link: Add / at the end to let aLinkCreator append the current file name"
-msgstr "Введите здесь URL который вы хотите добавить к eD2k ссылке: добавьте / в конце если хотите чтобы aLinkCreator присоеденил текущее имя файла"
+msgstr "Введите здесь адрес, который хотите добавить к ссылке eD2k: добавьте / в конце, чтобы aLinkCreator дописал текущее имя файла"
 
 #: src/utils/aLinkCreator/src/alcframe.cpp
 msgid "Create link with part-hashes"

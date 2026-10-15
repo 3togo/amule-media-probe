@@ -482,6 +482,11 @@ msgstr "Kad käivitussõlmed (nodes.dat)"
 
 #: src/amule.cpp
 #, c-format
+msgid "Not starting %s: it is neither next to aMule nor on PATH."
+msgstr ""
+
+#: src/amule.cpp
+#, c-format
 msgid "web server running on pid %d"
 msgstr "web server töötab protsessi id'ga %d"
 
@@ -500,13 +505,31 @@ msgid "Could not write the amuleapi EC token to %s; amuleapi will fall back to i
 msgstr ""
 
 #: src/amule.cpp
+msgid "An exception occurred while launching amuleapi."
+msgstr ""
+
+#: src/amule.cpp
 #, c-format
 msgid "amuleapi running on pid %d"
 msgstr "amuleapi töötab PID-ga %d"
 
 #: src/amule.cpp
+msgid "Could not launch amuleapi during automatic restart."
+msgstr ""
+
+#: src/amule.cpp
 msgid "You requested to run amuleapi on startup, but the amuleapi binary cannot be run. Please install the package containing aMule's REST API server, or build aMule from source with -DBUILD_AMULEAPI=YES and install it."
 msgstr "Palusid käivitusel amuleapi käivitada, kuid amuleapi binaarfaili ei saa käivitada. Palun paigalda aMule REST API serverit sisaldav pakett või ehita aMule lähtekoodist valikuga -DBUILD_AMULEAPI=YES ja paigalda see."
+
+#: src/amule.cpp
+#, fuzzy, c-format
+msgid "Could not remove the amuleapi EC token file: %s"
+msgstr "amuleapi parooli ei õnnestunud salvestada: %s"
+
+#: src/amule.cpp
+#, c-format
+msgid "amuleapi will restart in %u seconds."
+msgstr ""
 
 #: src/amule.cpp
 #, c-format
@@ -2369,6 +2392,11 @@ msgid "Cannot cancel a finished download: %s"
 msgstr "Faili '%s' tõmbamine lõpetatud"
 
 #: src/ExternalConn.cpp
+#, fuzzy, c-format
+msgid "No such category: %u"
+msgstr "Sulge see vestlus-seanss."
+
+#: src/ExternalConn.cpp
 msgid "OOPS! OpCode processing error!"
 msgstr "OOPS! OpCode töötlemise viga!"
 
@@ -2832,6 +2860,11 @@ msgstr "Faili eelvaade"
 #: src/FileLaunch.cpp
 #, c-format
 msgid "Media-player command '%s' was not run: %s"
+msgstr ""
+
+#: src/FileLaunch.cpp
+#, c-format
+msgid "The configured video player is unavailable inside aMule's Flatpak sandbox: %s. Programs installed on the host are not directly available here. Completed files can still open with the desktop's default application; previewing an unfinished download needs a player the sandbox can run, such as a self-contained player saved in your home folder."
 msgstr ""
 
 #: src/FileLaunch.cpp
@@ -3913,6 +3946,11 @@ msgstr "VIGA: "
 #: src/Logger.cpp
 msgid "WARNING: "
 msgstr "HOIATUS: "
+
+#: src/MediaProbe.cpp
+#, c-format
+msgid "Media metadata: not using %s, because another user owns it or a folder above it."
+msgstr ""
 
 #: src/MediaProbe.cpp
 msgid "Media metadata: no ffprobe binary found. Install ffmpeg, or set the ffprobe path in preferences; length, bitrate and codec will not be extracted."
@@ -7170,6 +7208,11 @@ msgstr ""
 #, c-format
 msgid "Only saving the first %u of %u results for search \"%s\"."
 msgstr ""
+
+#: src/SearchList.cpp
+#, fuzzy, c-format
+msgid "IO error while saving %s: %s"
+msgstr "IO viga %s faili lugemisel: %s"
 
 #: src/SearchList.cpp
 #, fuzzy

@@ -492,6 +492,11 @@ msgstr "Nœuds d'amorçage Kad (nodes.dat)"
 
 #: src/amule.cpp
 #, c-format
+msgid "Not starting %s: it is neither next to aMule nor on PATH."
+msgstr ""
+
+#: src/amule.cpp
+#, c-format
 msgid "web server running on pid %d"
 msgstr "serveur web s'exécutant avec le pid %d"
 
@@ -510,13 +515,31 @@ msgid "Could not write the amuleapi EC token to %s; amuleapi will fall back to i
 msgstr "Impossible d’écrire le jeton EC d’amuleapi dans %s ; amuleapi utilisera le mot de passe configuré."
 
 #: src/amule.cpp
+msgid "An exception occurred while launching amuleapi."
+msgstr ""
+
+#: src/amule.cpp
 #, c-format
 msgid "amuleapi running on pid %d"
 msgstr "amuleapi s'exécutant avec le pid %d"
 
 #: src/amule.cpp
+msgid "Could not launch amuleapi during automatic restart."
+msgstr ""
+
+#: src/amule.cpp
 msgid "You requested to run amuleapi on startup, but the amuleapi binary cannot be run. Please install the package containing aMule's REST API server, or build aMule from source with -DBUILD_AMULEAPI=YES and install it."
 msgstr "Vous avez demandé à exécuter amuleapi au démarrage, mais le binaire amuleapi ne peut être exécuté. Veuillez installer le paquet contenant le serveur API RESTd'aMule, ou compilez aMule depuis le code source avec -DBUILD_AMULEAPI=YES et installez-le."
+
+#: src/amule.cpp
+#, fuzzy, c-format
+msgid "Could not remove the amuleapi EC token file: %s"
+msgstr "Impossible d’enregistrer le mot de passe d’amuleapi : %s"
+
+#: src/amule.cpp
+#, c-format
+msgid "amuleapi will restart in %u seconds."
+msgstr ""
 
 #: src/amule.cpp
 #, c-format
@@ -2368,6 +2391,11 @@ msgid "Cannot cancel a finished download: %s"
 msgstr "Téléchargement terminé : %s"
 
 #: src/ExternalConn.cpp
+#, fuzzy, c-format
+msgid "No such category: %u"
+msgstr "La catégorie n'existe pas."
+
+#: src/ExternalConn.cpp
 msgid "OOPS! OpCode processing error!"
 msgstr "ARGH ! Erreur de traitement de l'OpCode !"
 
@@ -2826,6 +2854,11 @@ msgstr "Aperçu"
 #: src/FileLaunch.cpp
 #, c-format
 msgid "Media-player command '%s' was not run: %s"
+msgstr ""
+
+#: src/FileLaunch.cpp
+#, c-format
+msgid "The configured video player is unavailable inside aMule's Flatpak sandbox: %s. Programs installed on the host are not directly available here. Completed files can still open with the desktop's default application; previewing an unfinished download needs a player the sandbox can run, such as a self-contained player saved in your home folder."
 msgstr ""
 
 #: src/FileLaunch.cpp
@@ -3906,6 +3939,11 @@ msgstr "ERREUR : "
 #: src/Logger.cpp
 msgid "WARNING: "
 msgstr "AVERTISSEMENT : "
+
+#: src/MediaProbe.cpp
+#, c-format
+msgid "Media metadata: not using %s, because another user owns it or a folder above it."
+msgstr ""
 
 #: src/MediaProbe.cpp
 msgid "Media metadata: no ffprobe binary found. Install ffmpeg, or set the ffprobe path in preferences; length, bitrate and codec will not be extracted."
@@ -7152,6 +7190,11 @@ msgstr "Seule les %us plus récentes des %u recherches ouvertes sont enregistré
 #, c-format
 msgid "Only saving the first %u of %u results for search \"%s\"."
 msgstr "Seuls les %u résultats sur %u sont enregistrés pour la recherche « %s »."
+
+#: src/SearchList.cpp
+#, fuzzy, c-format
+msgid "IO error while saving %s: %s"
+msgstr "Erreur d'E/S lors de la lecture du fichier %s : %s"
 
 #: src/SearchList.cpp
 msgid "WARNING: Stored search list corrupted, contains invalid header."

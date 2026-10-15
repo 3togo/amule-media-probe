@@ -482,6 +482,11 @@ msgstr "Kad 부트스트랩 노드 (nodes.dat)"
 
 #: src/amule.cpp
 #, c-format
+msgid "Not starting %s: it is neither next to aMule nor on PATH."
+msgstr ""
+
+#: src/amule.cpp
+#, c-format
 msgid "web server running on pid %d"
 msgstr "웹 서버가 pid %d에서 실행 중입니다"
 
@@ -500,13 +505,31 @@ msgid "Could not write the amuleapi EC token to %s; amuleapi will fall back to i
 msgstr ""
 
 #: src/amule.cpp
+msgid "An exception occurred while launching amuleapi."
+msgstr ""
+
+#: src/amule.cpp
 #, c-format
 msgid "amuleapi running on pid %d"
 msgstr "PID %d에서 amuleapi가 실행 중입니다"
 
 #: src/amule.cpp
+msgid "Could not launch amuleapi during automatic restart."
+msgstr ""
+
+#: src/amule.cpp
 msgid "You requested to run amuleapi on startup, but the amuleapi binary cannot be run. Please install the package containing aMule's REST API server, or build aMule from source with -DBUILD_AMULEAPI=YES and install it."
 msgstr "시작 시 amuleapi를 실행하도록 요청하셨지만 amuleapi 바이너리를 실행할 수 없습니다. aMule의 REST API 서버가 포함된 패키지를 설치하거나, -DBUILD_AMULEAPI=YES 옵션으로 aMule을 소스에서 빌드하여 설치하세요."
+
+#: src/amule.cpp
+#, fuzzy, c-format
+msgid "Could not remove the amuleapi EC token file: %s"
+msgstr "amuleapi 암호를 저장할 수 없습니다: %s"
+
+#: src/amule.cpp
+#, c-format
+msgid "amuleapi will restart in %u seconds."
+msgstr ""
 
 #: src/amule.cpp
 #, c-format
@@ -2369,6 +2392,11 @@ msgid "Cannot cancel a finished download: %s"
 msgstr "내려받기 완료: %s"
 
 #: src/ExternalConn.cpp
+#, fuzzy, c-format
+msgid "No such category: %u"
+msgstr "이 채팅세션을 닫습니다."
+
+#: src/ExternalConn.cpp
 msgid "OOPS! OpCode processing error!"
 msgstr "이런! 명령코드 처리 오류!"
 
@@ -2832,6 +2860,11 @@ msgstr "미리보기"
 #: src/FileLaunch.cpp
 #, c-format
 msgid "Media-player command '%s' was not run: %s"
+msgstr ""
+
+#: src/FileLaunch.cpp
+#, c-format
+msgid "The configured video player is unavailable inside aMule's Flatpak sandbox: %s. Programs installed on the host are not directly available here. Completed files can still open with the desktop's default application; previewing an unfinished download needs a player the sandbox can run, such as a self-contained player saved in your home folder."
 msgstr ""
 
 #: src/FileLaunch.cpp
@@ -3914,6 +3947,11 @@ msgstr "오류: "
 #: src/Logger.cpp
 msgid "WARNING: "
 msgstr "경고: "
+
+#: src/MediaProbe.cpp
+#, c-format
+msgid "Media metadata: not using %s, because another user owns it or a folder above it."
+msgstr ""
 
 #: src/MediaProbe.cpp
 msgid "Media metadata: no ffprobe binary found. Install ffmpeg, or set the ffprobe path in preferences; length, bitrate and codec will not be extracted."
@@ -7170,6 +7208,11 @@ msgstr ""
 #, c-format
 msgid "Only saving the first %u of %u results for search \"%s\"."
 msgstr ""
+
+#: src/SearchList.cpp
+#, fuzzy, c-format
+msgid "IO error while saving %s: %s"
+msgstr "%s 파일을 읽는 중 입출력 오류 발생: %s"
 
 #: src/SearchList.cpp
 #, fuzzy

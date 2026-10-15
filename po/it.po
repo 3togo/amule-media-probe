@@ -20,7 +20,7 @@ msgstr ""
 "Project-Id-Version: aMule 2.3.3\n"
 "Report-Msgid-Bugs-To: https://github.com/amule-org/amule/issues\n"
 "POT-Creation-Date: 2026-10-09 12:39+0000\n"
-"PO-Revision-Date: 2026-10-13 14:56+0000\n"
+"PO-Revision-Date: 2026-10-14 10:18+0000\n"
 "Last-Translator: got3nks <got3nks@users.noreply.github.com>\n"
 "Language-Team: SebastianoPistore.info@protonmail.ch\n"
 "Language: it\n"
@@ -511,6 +511,11 @@ msgstr "Nodi di bootstrap Kad (nodes.dat)"
 
 #: src/amule.cpp
 #, c-format
+msgid "Not starting %s: it is neither next to aMule nor on PATH."
+msgstr ""
+
+#: src/amule.cpp
+#, c-format
 msgid "web server running on pid %d"
 msgstr "web server in esecuzione su pid %d"
 
@@ -529,13 +534,31 @@ msgid "Could not write the amuleapi EC token to %s; amuleapi will fall back to i
 msgstr "Impossibile scrivere il token EC di amuleapi in %s; amuleapi userà la password configurata."
 
 #: src/amule.cpp
+msgid "An exception occurred while launching amuleapi."
+msgstr ""
+
+#: src/amule.cpp
 #, c-format
 msgid "amuleapi running on pid %d"
 msgstr "amuleapi in esecuzione su pid %d"
 
 #: src/amule.cpp
+msgid "Could not launch amuleapi during automatic restart."
+msgstr ""
+
+#: src/amule.cpp
 msgid "You requested to run amuleapi on startup, but the amuleapi binary cannot be run. Please install the package containing aMule's REST API server, or build aMule from source with -DBUILD_AMULEAPI=YES and install it."
 msgstr "Hai scelto di lanciare amuleapi all'avvio, ma il programma amuleapi non può essere eseguito. Installa il pacchetto contenente amuleapi, oppure compila aMule dai sorgenti con -DBUILD_AMULEAPI=YES e installalo."
+
+#: src/amule.cpp
+#, fuzzy, c-format
+msgid "Could not remove the amuleapi EC token file: %s"
+msgstr "Impossibile salvare la password di amuleapi: %s"
+
+#: src/amule.cpp
+#, c-format
+msgid "amuleapi will restart in %u seconds."
+msgstr ""
 
 #: src/amule.cpp
 #, c-format
@@ -1211,19 +1234,19 @@ msgstr "Pronto"
 
 #: src/amule-remote-gui.cpp
 msgid "*** Solve the CAPTCHA and send its text as a message."
-msgstr ""
+msgstr "*** Risolvi il CAPTCHA e invia il testo come messaggio."
 
 #: src/amule-remote-gui.cpp
 msgid "*** CAPTCHA passed; your message was delivered."
-msgstr ""
+msgstr "*** CAPTCHA superato; il tuo messaggio è stato consegnato."
 
 #: src/amule-remote-gui.cpp
 msgid "*** CAPTCHA failed; send another message to try again."
-msgstr ""
+msgstr "*** CAPTCHA non superato; invia un altro messaggio per riprovare."
 
 #: src/amule-remote-gui.cpp
 msgid "*** CAPTCHA failed; no attempts remain."
-msgstr ""
+msgstr "*** CAPTCHA non superato; non restano altri tentativi."
 
 #: src/amule-remote-gui.cpp src/TransferWnd.cpp
 msgid "All"
@@ -2385,6 +2408,11 @@ msgid "Cannot cancel a finished download: %s"
 msgstr "Impossibile annullare un download completato: %s"
 
 #: src/ExternalConn.cpp
+#, c-format
+msgid "No such category: %u"
+msgstr "Categoria inesistente: %u"
+
+#: src/ExternalConn.cpp
 msgid "OOPS! OpCode processing error!"
 msgstr "OOPS! errore nel processare l'opcode!"
 
@@ -2526,7 +2554,7 @@ msgstr "Messaggio di chat vuoto"
 
 #: src/ExternalConn.cpp
 msgid "CAPTCHA challenge is no longer pending"
-msgstr ""
+msgstr "Il CAPTCHA non è più in attesa di risposta"
 
 #: src/ExternalConn.cpp
 msgid "Unknown chat target"
@@ -2844,6 +2872,11 @@ msgstr "Anteprima"
 #, c-format
 msgid "Media-player command '%s' was not run: %s"
 msgstr "Il comando del lettore multimediale ‘%s’ non è stato eseguito: %s"
+
+#: src/FileLaunch.cpp
+#, c-format
+msgid "The configured video player is unavailable inside aMule's Flatpak sandbox: %s. Programs installed on the host are not directly available here. Completed files can still open with the desktop's default application; previewing an unfinished download needs a player the sandbox can run, such as a self-contained player saved in your home folder."
+msgstr ""
 
 #: src/FileLaunch.cpp
 #, c-format
@@ -3912,6 +3945,11 @@ msgstr "ERRORE: "
 #: src/Logger.cpp
 msgid "WARNING: "
 msgstr "ATTENZIONE: "
+
+#: src/MediaProbe.cpp
+#, c-format
+msgid "Media metadata: not using %s, because another user owns it or a folder above it."
+msgstr ""
 
 #: src/MediaProbe.cpp
 msgid "Media metadata: no ffprobe binary found. Install ffmpeg, or set the ffprobe path in preferences; length, bitrate and codec will not be extracted."
@@ -7165,6 +7203,11 @@ msgstr "Verranno salvate solo le %u ricerche aperte più recenti su %u in %s."
 #, c-format
 msgid "Only saving the first %u of %u results for search \"%s\"."
 msgstr "Verranno salvati solo i primi %u risultati su %u per la ricerca \"%s\"."
+
+#: src/SearchList.cpp
+#, fuzzy, c-format
+msgid "IO error while saving %s: %s"
+msgstr "Errore I/O durante la lettura del file %s: %s"
 
 #: src/SearchList.cpp
 msgid "WARNING: Stored search list corrupted, contains invalid header."

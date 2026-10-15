@@ -452,6 +452,11 @@ msgstr ""
 
 #: src/amule.cpp
 #, c-format
+msgid "Not starting %s: it is neither next to aMule nor on PATH."
+msgstr ""
+
+#: src/amule.cpp
+#, c-format
 msgid "web server running on pid %d"
 msgstr ""
 
@@ -470,12 +475,30 @@ msgid "Could not write the amuleapi EC token to %s; amuleapi will fall back to i
 msgstr ""
 
 #: src/amule.cpp
+msgid "An exception occurred while launching amuleapi."
+msgstr ""
+
+#: src/amule.cpp
 #, c-format
 msgid "amuleapi running on pid %d"
 msgstr ""
 
 #: src/amule.cpp
+msgid "Could not launch amuleapi during automatic restart."
+msgstr ""
+
+#: src/amule.cpp
 msgid "You requested to run amuleapi on startup, but the amuleapi binary cannot be run. Please install the package containing aMule's REST API server, or build aMule from source with -DBUILD_AMULEAPI=YES and install it."
+msgstr ""
+
+#: src/amule.cpp
+#, c-format
+msgid "Could not remove the amuleapi EC token file: %s"
+msgstr ""
+
+#: src/amule.cpp
+#, c-format
+msgid "amuleapi will restart in %u seconds."
 msgstr ""
 
 #: src/amule.cpp
@@ -2304,6 +2327,11 @@ msgid "Cannot cancel a finished download: %s"
 msgstr ""
 
 #: src/ExternalConn.cpp
+#, c-format
+msgid "No such category: %u"
+msgstr ""
+
+#: src/ExternalConn.cpp
 msgid "OOPS! OpCode processing error!"
 msgstr ""
 
@@ -2737,6 +2765,11 @@ msgstr ""
 #: src/FileLaunch.cpp
 #, c-format
 msgid "Media-player command '%s' was not run: %s"
+msgstr ""
+
+#: src/FileLaunch.cpp
+#, c-format
+msgid "The configured video player is unavailable inside aMule's Flatpak sandbox: %s. Programs installed on the host are not directly available here. Completed files can still open with the desktop's default application; previewing an unfinished download needs a player the sandbox can run, such as a self-contained player saved in your home folder."
 msgstr ""
 
 #: src/FileLaunch.cpp
@@ -3788,6 +3821,11 @@ msgstr ""
 
 #: src/Logger.cpp
 msgid "WARNING: "
+msgstr ""
+
+#: src/MediaProbe.cpp
+#, c-format
+msgid "Media metadata: not using %s, because another user owns it or a folder above it."
 msgstr ""
 
 #: src/MediaProbe.cpp
@@ -6973,6 +7011,11 @@ msgstr ""
 #: src/SearchList.cpp
 #, c-format
 msgid "Only saving the first %u of %u results for search \"%s\"."
+msgstr ""
+
+#: src/SearchList.cpp
+#, c-format
+msgid "IO error while saving %s: %s"
 msgstr ""
 
 #: src/SearchList.cpp

@@ -9,6 +9,7 @@ function (add_application_test_stubs target)
 endfunction()
 
 find_package (Python3 QUIET COMPONENTS Interpreter)
+
 if (Python3_Interpreter_FOUND)
 	add_test (NAME IntegrationFixtureUnitTest
 		COMMAND ${Python3_EXECUTABLE} -u ${CMAKE_CURRENT_SOURCE_DIR}/IntegrationFixtureUnitTest.py -v
@@ -32,12 +33,15 @@ if (BUILD_MONOLITHIC OR BUILD_REMOTEGUI)
 		${CMAKE_SOURCE_DIR}/src/icons/icon_data.c
 	)
 	target_include_directories (IconArtworkTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
-	target_link_libraries (IconArtworkTest PRIVATE wxWidgets::CORE)
+	find_package (Threads REQUIRED)
+	target_link_libraries (IconArtworkTest PRIVATE wxWidgets::CORE Threads::Threads)
 	if (WIN32)
 		# wx core imports Common Controls v6 entry points. Match the GUI's
 		# activation context and DPI awareness before the DLL loader runs.
 		target_sources (IconArtworkTest PRIVATE IconArtworkTest.rc)
 		target_include_directories (IconArtworkTest PRIVATE ${CMAKE_SOURCE_DIR})
+		# MiniDumpWriteDump for the hang watchdog.
+		target_link_libraries (IconArtworkTest PRIVATE dbghelp)
 	endif()
 	if (APPLE)
 		target_sources (IconArtworkTest PRIVATE ${CMAKE_SOURCE_DIR}/src/MenuIcons_mac.mm)
@@ -46,6 +50,11 @@ if (BUILD_MONOLITHIC OR BUILD_REMOTEGUI)
 	add_test (NAME IconArtworkTest COMMAND IconArtworkTest)
 	set_tests_properties (IconArtworkTest PROPERTIES SKIP_RETURN_CODE 77 LABELS "gui")
 	if (UNIX AND NOT APPLE)
+		add_test (NAME IconArtworkHeadlessTest
+			COMMAND ${CMAKE_COMMAND}
+				-DICON_ARTWORK_TEST=$<TARGET_FILE:IconArtworkTest>
+				-P ${CMAKE_CURRENT_SOURCE_DIR}/IconArtworkHeadlessTest.cmake
+		)
 		add_test (NAME IconArtworkDarkTest COMMAND IconArtworkTest)
 		add_test (NAME IconArtworkHighContrastTest COMMAND IconArtworkTest)
 		set_tests_properties (IconArtworkDarkTest PROPERTIES
@@ -154,6 +163,12 @@ add_executable (ProtocolPeerIdentityTest ProtocolPeerIdentityTest.cpp)
 add_test (NAME ProtocolPeerIdentityTest COMMAND ProtocolPeerIdentityTest)
 target_include_directories (ProtocolPeerIdentityTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries (ProtocolPeerIdentityTest muleunit mulecommon)
+
+# Per-socket refill thresholds use original payload, independent of statistics resets.
+add_executable (UploadRefillTest UploadRefillTest.cpp)
+add_test (NAME UploadRefillTest COMMAND UploadRefillTest)
+target_include_directories (UploadRefillTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries (UploadRefillTest muleunit mulecommon)
 
 # The done-list cap, without live clients.
 add_executable (UploadBlockListsTest UploadBlockListsTest.cpp)
@@ -447,6 +462,7 @@ endif()
 
 add_executable (PacketTest
 	PacketTest.cpp
+	ServerUDPPacketQueueTest.cpp
 	${CMAKE_SOURCE_DIR}/src/Packet.cpp
 	${CMAKE_SOURCE_DIR}/src/MemFile.cpp
 	${CMAKE_SOURCE_DIR}/src/SafeFile.cpp
@@ -1092,6 +1108,27 @@ target_link_libraries (SafeKadTest
 	mulecommon
 )
 
+# CFileAutoClose's known size, used by the main thread's part-file size checks.
+add_executable (FileAutoCloseTest
+	FileAutoCloseTest.cpp
+	${CMAKE_SOURCE_DIR}/src/FileAutoClose.cpp
+	${CMAKE_SOURCE_DIR}/src/SafeFile.cpp
+	${CMAKE_SOURCE_DIR}/src/CFile.cpp
+	${CMAKE_SOURCE_DIR}/src/MemFile.cpp
+	${CMAKE_SOURCE_DIR}/src/kademlia/utils/UInt128.cpp
+	${CMAKE_SOURCE_DIR}/src/Tag.cpp
+	${CMAKE_SOURCE_DIR}/src/libs/common/Path.cpp
+	${CMAKE_SOURCE_DIR}/src/libs/common/Format.cpp
+	${CMAKE_SOURCE_DIR}/src/libs/common/strerror_r.c
+)
+add_test (NAME FileAutoCloseTest COMMAND FileAutoCloseTest)
+target_include_directories (FileAutoCloseTest PRIVATE
+	${CMAKE_BINARY_DIR}
+	${CMAKE_SOURCE_DIR}/src
+	${CMAKE_SOURCE_DIR}/src/include
+)
+target_link_libraries (FileAutoCloseTest muleunit)
+
 add_executable (FileDataIOTest
 	FileDataIOTest.cpp
 	${CMAKE_SOURCE_DIR}/src/SafeFile.cpp
@@ -1115,6 +1152,33 @@ target_include_directories (FileDataIOTest
 )
 
 target_link_libraries (FileDataIOTest
+	muleunit
+)
+
+add_executable (PartMetWriterTest
+	PartMetWriterTest.cpp
+	${CMAKE_SOURCE_DIR}/src/PartMetWriter.cpp
+	${CMAKE_SOURCE_DIR}/src/SafeFile.cpp
+	${CMAKE_SOURCE_DIR}/src/CFile.cpp
+	${CMAKE_SOURCE_DIR}/src/MemFile.cpp
+	${CMAKE_SOURCE_DIR}/src/kademlia/utils/UInt128.cpp
+	${CMAKE_SOURCE_DIR}/src/Tag.cpp
+	${CMAKE_SOURCE_DIR}/src/libs/common/Path.cpp
+	${CMAKE_SOURCE_DIR}/src/libs/common/Format.cpp
+	${CMAKE_SOURCE_DIR}/src/libs/common/strerror_r.c
+)
+
+add_test (NAME PartMetWriterTest
+	COMMAND PartMetWriterTest
+)
+
+target_include_directories (PartMetWriterTest
+	PRIVATE ${CMAKE_BINARY_DIR}
+	PRIVATE ${CMAKE_SOURCE_DIR}/src
+	PRIVATE ${CMAKE_SOURCE_DIR}/src/include
+)
+
+target_link_libraries (PartMetWriterTest
 	muleunit
 )
 
@@ -2352,6 +2416,22 @@ if (ENABLE_INTEGRATION_TESTS AND BUILD_DAEMON AND UNIX AND NOT APPLE)
 		add_test (NAME KadDistributionECTest COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/KadDistributionECTest.py $<TARGET_FILE:amuled>)
 		add_test (NAME KadPopulatedDistributionECTest COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/KadDistributionECTest.py $<TARGET_FILE:amuled> --populated)
 		set_tests_properties (KadPopulatedDistributionECTest PROPERTIES SKIP_RETURN_CODE 77)
+		add_test (NAME AmuleApiRestartIntegrationTest
+			COMMAND ${Python3_EXECUTABLE}
+				${CMAKE_CURRENT_SOURCE_DIR}/AmuleApiRestartIntegrationTest.py $<TARGET_FILE:amuled>
+		)
+		if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+			add_test (NAME UploadRefillIntegrationTest
+				COMMAND ${Python3_EXECUTABLE} -u
+					${CMAKE_CURRENT_SOURCE_DIR}/UploadRefillIntegrationTest.py
+					$<TARGET_FILE:amuled> --seconds 3
+			)
+			add_test (NAME UploadRefillCompressedIntegrationTest
+				COMMAND ${Python3_EXECUTABLE} -u
+					${CMAKE_CURRENT_SOURCE_DIR}/UploadRefillIntegrationTest.py
+					$<TARGET_FILE:amuled> --seconds 3 --compress
+			)
+		endif()
 		add_test (NAME LogfilePathIntegrationTest
 			COMMAND ${Python3_EXECUTABLE}
 				${CMAKE_CURRENT_SOURCE_DIR}/LogfilePathIntegrationTest.py $<TARGET_FILE:amuled>
@@ -2395,6 +2475,10 @@ if (ENABLE_INTEGRATION_TESTS AND BUILD_DAEMON AND UNIX AND NOT APPLE)
 		add_test (NAME KnownHistoryIntegrationTest
 			COMMAND ${Python3_EXECUTABLE}
 				${CMAKE_CURRENT_SOURCE_DIR}/KnownHistoryIntegrationTest.py $<TARGET_FILE:amuled>
+		)
+		add_test (NAME PacketReceiveIntegrationTest
+			COMMAND ${Python3_EXECUTABLE}
+				${CMAKE_CURRENT_SOURCE_DIR}/PacketReceiveIntegrationTest.py $<TARGET_FILE:amuled>
 		)
 		add_test (NAME ServerTrustIntegrationTest
 			COMMAND ${Python3_EXECUTABLE}
@@ -2584,6 +2668,11 @@ add_test (NAME RemoteDownloadEventsTest COMMAND RemoteDownloadEventsTest)
 target_include_directories (RemoteDownloadEventsTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries (RemoteDownloadEventsTest muleunit mulecommon)
 
+add_executable (DiskSpaceResumeBudgetTest DiskSpaceResumeBudgetTest.cpp)
+target_include_directories (DiskSpaceResumeBudgetTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries (DiskSpaceResumeBudgetTest muleunit mulecommon)
+add_test (NAME DiskSpaceResumeBudgetTest COMMAND DiskSpaceResumeBudgetTest)
+
 add_executable (GeoIPUpdateScheduleTest GeoIPUpdateScheduleTest.cpp)
 target_include_directories (GeoIPUpdateScheduleTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries (GeoIPUpdateScheduleTest muleunit mulecommon)
@@ -2626,3 +2715,24 @@ if (ENABLE_NLS AND Intl_FOUND)
 	target_link_libraries (SearchPacketTest PRIVATE ${Intl_LIBRARIES})
 endif()
 add_test (NAME SearchPacketTest COMMAND SearchPacketTest)
+
+# Retry scheduling for the core-supervised API child.
+add_executable (AmuleApiRestartTest AmuleApiRestartTest.cpp)
+add_test (NAME AmuleApiRestartTest COMMAND AmuleApiRestartTest)
+target_include_directories (AmuleApiRestartTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries (AmuleApiRestartTest muleunit mulecommon)
+
+# Pipe draining and process-observer lifetime without starting the application.
+add_executable (AmuleApiProcessTest
+	AmuleApiProcessTest.cpp
+	${CMAKE_SOURCE_DIR}/src/TerminationProcessAmuleApi.cpp
+	${CMAKE_SOURCE_DIR}/src/TerminationProcess.cpp
+	${CMAKE_SOURCE_DIR}/src/LoggerConsole.cpp
+)
+add_application_test_stubs (AmuleApiProcessTest)
+target_compile_definitions (AmuleApiProcessTest PRIVATE AMULE_DAEMON wxUSE_GUI=0)
+target_include_directories (AmuleApiProcessTest PRIVATE
+	${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/src/include
+)
+target_link_libraries (AmuleApiProcessTest muleunit mulecommon wxWidgets::BASE)
+add_test (NAME AmuleApiProcessTest COMMAND AmuleApiProcessTest)

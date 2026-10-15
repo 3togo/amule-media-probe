@@ -54,6 +54,7 @@ if (BUILD_MONOLITHIC OR BUILD_DAEMON)
 		UploadQueue.cpp
 		PartFileWriteThread.cpp
 		PartFileHashThread.cpp
+		PartMetWriter.cpp
 		MediaProbeThread.cpp
 		FreeSpaceThread.cpp
 		ThreadTasks.cpp

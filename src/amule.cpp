@@ -73,8 +73,9 @@
 #include "kademlia/kademlia/Prefs.h"
 #include "kademlia/kademlia/UDPFirewallTester.h"
 #ifdef ENABLE_IPV6
-#include "AddressFamilyPolicy.h" // Needed for AddressFamilyPolicy::SetConfigured
-#include "AdvertisedIPv6.h"      // Needed for ChooseAdvertisedIPv6
+#include "AddressFamilyPolicy.h"    // Needed for AddressFamilyPolicy::SetConfigured
+#include "AdvertisedIPv6.h"         // Needed for ChooseAdvertisedIPv6
+#include "IPv6ChangeNotification.h" // Needed for ShouldMarkIPv6ChangeNotification
 #endif
 #include "HashListFile.h"
 #include "ClientCreditsList.h"    // Needed for CClientCreditsList
@@ -109,12 +110,14 @@
 #include "AmuleApiCredentials.h"        // Needed for AmuleApiCredentials::RefreshState
 #include <AtomicFile.h>                 // webcommon::WriteFileAtomic0600 for the EC token
 #include <Credentials.h>                // webcommon::EcTokenFilePath / GenerateEcToken
+#include "ExternalCommand.h"            // Windows child-process argument quoting
 #include "TerminationProcessAmuleApi.h" // Needed for CTerminationProcessAmuleApi
 #include "TerminationProcessAmuleweb.h" // Needed for CTerminationProcessAmuleweb
 #include "ThreadTasks.h"
 #include "UploadQueue.h"         // Needed for CUploadQueue
 #include "PartFileWriteThread.h" // Needed for CPartFileWriteThread
 #include "PartFileHashThread.h"  // Needed for CPartFileHashThread
+#include "PartMetWriter.h"       // Needed for CPartMetWriter
 #include "MediaProbeThread.h"    // Needed for CMediaProbeThread
 #include "FreeSpaceThread.h"     // Needed for CFreeSpaceThread
 #include "UploadBandwidthThrottler.h"
@@ -264,6 +267,7 @@ CamuleApp::CamuleApp()
 #endif
 	core_timer = NULL;
 	partFileHashThread = NULL;
+	partMetWriter = nullptr;
 	mediaProbeThread = nullptr;
 	freeSpaceThread = nullptr;
 
@@ -336,6 +340,11 @@ int CamuleApp::OnExit()
 		return 0;
 	}
 	s_exitDone = true;
+	m_amuleApiStopping = true;
+	m_amuleApiRestart.Cancel();
+	if (!m_ecToken.IsEmpty() || m_ecTokenFileExpiryMs) {
+		ClearAmuleApiToken();
+	}
 
 	if (m_app_state != APP_STATE_STARTING) {
 		AddLogLineNS(_("Now, exiting main app..."));
@@ -381,6 +390,14 @@ int CamuleApp::OnExit()
 				AddLogLineNS(_("Failed"));
 			}
 		}
+	}
+
+	if (m_amuleApiProcess) {
+		// The event loop may already have stopped, so its termination callback
+		// need not run. Release the worker/streams before wx teardown, and
+		// prevent a late callback from reaching this application.
+		m_amuleApiProcess->ReleaseFromApp();
+		m_amuleApiProcess = nullptr;
 	}
 
 	if (m_app_state != APP_STATE_STARTING) {
@@ -482,6 +499,10 @@ int CamuleApp::OnExit()
 		delete partFileWriteThread;
 		partFileWriteThread = NULL;
 	}
+
+	// Writes the saves still queued; ~CPartFile then saves inline.
+	delete partMetWriter;
+	partMetWriter = nullptr;
 
 	delete downloadqueue;
 	downloadqueue = NULL;
@@ -1022,6 +1043,7 @@ bool CamuleApp::OnInit()
 	// POSIX threads belong to the child and actually drain the PartFileBufferedData queue.
 	partFileWriteThread = new CPartFileWriteThread();
 	partFileHashThread = new CPartFileHashThread();
+	partMetWriter = new CPartMetWriter();
 	// Dedicated worker for ffprobe metadata, isolated from the shared
 	// CThreadScheduler so a slow or hung probe can never stall completions.
 	mediaProbeThread = new CMediaProbeThread();
@@ -1371,15 +1393,23 @@ bool CamuleApp::OnInit()
 #define QUOTE "\'"
 #endif
 
-		wxString cmd = QUOTE + amulewebPath +
-			       QUOTE " " QUOTE "--amule-config-file=" + aMuleConfigFile + QUOTE;
-		CTerminationProcessAmuleweb *p = new CTerminationProcessAmuleweb(cmd, &webserver_pid);
-		webserver_pid = static_cast<int>(wxExecute(cmd, wxEXEC_ASYNC, p));
-		bool webserver_ok = webserver_pid > 0;
-		if (webserver_ok) {
-			AddLogLineC(CFormat(_("web server running on pid %d")) % webserver_pid);
+		bool webserver_ok = false;
+		if (amulewebPath.IsEmpty()) {
+			AddLogLineC(CFormat(_("Not starting %s: it is neither next to aMule nor on PATH.")) %
+				    thePrefs::GetWSPath());
 		} else {
-			delete p;
+			wxString cmd = QUOTE + amulewebPath +
+				       QUOTE " " QUOTE "--amule-config-file=" + aMuleConfigFile + QUOTE;
+			CTerminationProcessAmuleweb *p = new CTerminationProcessAmuleweb(cmd, &webserver_pid);
+			webserver_pid = static_cast<int>(wxExecute(cmd, wxEXEC_ASYNC, p));
+			webserver_ok = webserver_pid > 0;
+			if (webserver_ok) {
+				AddLogLineC(CFormat(_("web server running on pid %d")) % webserver_pid);
+			} else {
+				delete p;
+			}
+		}
+		if (!webserver_ok) {
 			// Defer the modal until after OnInit returns. During OnInit the main window is
 			// not yet visible on Windows, so a modal ShowAlert spawns invisible and blocks
 			// the message loop waiting on input that cannot be given -- aMule then boots
@@ -1403,27 +1433,50 @@ bool CamuleApp::OnInit()
 
 	// Run amuleapi?
 	if (thePrefs::GetAmuleApiIsEnabled()) {
-		wxString amuleapiPath = ResolveHelperBinary(
-			thePrefs::GetAmuleApiPath(), AutostartManager::GetCanonicalExecutablePath());
+		StartAmuleApi(true);
+	}
+
+	return true;
+}
+
+void CamuleApp::StartAmuleApi(bool startup)
+{
+	if (!IsRunning() || m_amuleApiStopping || g_shutdownSignal || !thePrefs::GetAmuleApiIsEnabled() ||
+		amuleapi_pid) {
+		m_amuleApiRestart.Cancel();
+		return;
+	}
+	if (!ClearAmuleApiToken()) {
+		// A stale unread token would override the child's configured password.
+		// Wait for cleanup to succeed before handing another credential to it.
+		ScheduleAmuleApiRestart();
+		return;
+	}
+	wxString amuleapiPath = ResolveHelperBinary(
+		thePrefs::GetAmuleApiPath(), AutostartManager::GetCanonicalExecutablePath());
 
 #if defined(__WXMAC__) && !defined(AMULE_DAEMON)
-		// For the Mac GUI application, look for amuleapi in the bundle
-		CFURLRef amuleapiUrl =
-			CFBundleCopyAuxiliaryExecutableURL(CFBundleGetMainBundle(), CFSTR("amuleapi"));
+	// For the Mac GUI application, look for amuleapi in the bundle
+	CFURLRef amuleapiUrl = CFBundleCopyAuxiliaryExecutableURL(CFBundleGetMainBundle(), CFSTR("amuleapi"));
 
-		if (amuleapiUrl) {
-			CFURLRef absoluteUrl = CFURLCopyAbsoluteURL(amuleapiUrl);
-			CFRelease(amuleapiUrl);
+	if (amuleapiUrl) {
+		CFURLRef absoluteUrl = CFURLCopyAbsoluteURL(amuleapiUrl);
+		CFRelease(amuleapiUrl);
 
-			if (absoluteUrl) {
-				CFStringRef amuleapiCfstr =
-					CFURLCopyFileSystemPath(absoluteUrl, kCFURLPOSIXPathStyle);
-				CFRelease(absoluteUrl);
-				amuleapiPath = wxCFStringRef(amuleapiCfstr).AsString();
-			}
+		if (absoluteUrl) {
+			CFStringRef amuleapiCfstr =
+				CFURLCopyFileSystemPath(absoluteUrl, kCFURLPOSIXPathStyle);
+			CFRelease(absoluteUrl);
+			amuleapiPath = wxCFStringRef(amuleapiCfstr).AsString();
 		}
+	}
 #endif
 
+	CTerminationProcessAmuleApi *p = nullptr;
+	if (amuleapiPath.IsEmpty()) {
+		AddLogLineC(CFormat(_("Not starting %s: it is neither next to aMule nor on PATH.")) %
+			    thePrefs::GetAmuleApiPath());
+	} else {
 		// Hand the child an ephemeral EC credential instead of letting it read the
 		// password-equivalent value out of amule.conf. Written 0600 into the config dir the
 		// child is about to be pointed at, under the one name both sides derive from
@@ -1463,28 +1516,107 @@ bool CamuleApp::OnInit()
 			thePrefs::GetAmuleApiPort(),
 			ecIp,
 			ecPort);
-		CTerminationProcessAmuleApi *p = new CTerminationProcessAmuleApi(cmd, &amuleapi_pid);
-		amuleapi_pid = static_cast<int>(wxExecute(cmd, wxEXEC_ASYNC, p));
-		bool amuleapi_ok = amuleapi_pid > 0;
-		if (amuleapi_ok) {
-			AddLogLineC(CFormat(_("amuleapi running on pid %d")) % amuleapi_pid);
-		} else {
-			delete p;
-			// See the amuleweb branch above for why this is deferred with
-			// CallAfter rather than shown inline during OnInit.
-			CallAfter([this]() {
-				ShowAlert(_("You requested to run amuleapi on startup, "
-					    "but the amuleapi binary cannot be run. Please "
-					    "install the package containing aMule's REST API "
-					    "server, or build aMule from source with "
-					    "-DBUILD_AMULEAPI=YES and install it."),
-					_("ERROR"),
-					wxOK | wxICON_ERROR);
-			});
+		const wxArrayString args = AmuleApiArguments(amuleapiPath,
+			thePrefs::GetConfigDir(),
+			thePrefs::GetAmuleApiBindAddress(),
+			thePrefs::GetAmuleApiPort(),
+			ecIp,
+			ecPort);
+#ifndef __WINDOWS__
+		std::vector<wxWCharBuffer> buffers;
+		std::vector<const wchar_t *> argv;
+		buffers.reserve(args.size());
+		argv.reserve(args.size() + 1);
+		for (const wxString &arg : args) {
+			buffers.emplace_back(arg.wc_str());
+			argv.push_back(buffers.back().data());
+		}
+		argv.push_back(nullptr);
+#endif
+		amuleapi_pid = 0;
+		try {
+			p = new CTerminationProcessAmuleApi(cmd, this);
+			m_amuleApiProcess = p;
+#ifdef __WINDOWS__
+			// wxWidgets' argv overload does not preserve trailing Windows backslashes.
+			amuleapi_pid = static_cast<int>(
+				wxExecute(ExternalCommand::BuildWindowsCommandLine(args), wxEXEC_ASYNC, p));
+#else
+			amuleapi_pid = static_cast<int>(wxExecute(argv.data(), wxEXEC_ASYNC, p));
+#endif
+			if (amuleapi_pid > 0) {
+				p->StartOutputDrain();
+			}
+		} catch (...) {
+			// wxExecute can throw if its launch environment is unusable. A failed
+			// retry must not unwind out of the core timer and terminate aMule.
+			AddLogLineN(_("An exception occurred while launching amuleapi."));
 		}
 	}
+	bool amuleapi_ok = amuleapi_pid > 0;
+	if (amuleapi_ok) {
+		m_amuleApiRestart.Started(theStats::GetUptimeMillis());
+		AddLogLineC(CFormat(_("amuleapi running on pid %d")) % amuleapi_pid);
+	} else {
+		amuleapi_pid = 0;
+		m_amuleApiProcess = nullptr;
+		delete p;
+		ClearAmuleApiToken();
+		// See the amuleweb branch above for why this is deferred with
+		// CallAfter rather than shown inline during OnInit.
+		if (!startup) {
+			AddLogLineN(_("Could not launch amuleapi during automatic restart."));
+			ScheduleAmuleApiRestart();
+			return;
+		}
+		CallAfter([this]() {
+			ShowAlert(_("You requested to run amuleapi on startup, "
+				    "but the amuleapi binary cannot be run. Please "
+				    "install the package containing aMule's REST API "
+				    "server, or build aMule from source with "
+				    "-DBUILD_AMULEAPI=YES and install it."),
+				_("ERROR"),
+				wxOK | wxICON_ERROR);
+		});
+	}
+}
 
+bool CamuleApp::ClearAmuleApiToken()
+{
+	m_ecToken.Clear();
+	m_ecTokenFileExpiryMs = 0;
+	const wxString tokenPath = wxString::FromUTF8(
+		webcommon::EcTokenFilePath(std::string(thePrefs::GetConfigDir().utf8_str())).c_str());
+	if (wxFileExists(tokenPath) && !wxRemoveFile(tokenPath)) {
+		m_ecTokenFileExpiryMs = theStats::GetUptimeMillis() + EC_TOKEN_FILE_TTL_MS;
+		AddLogLineN(CFormat(_("Could not remove the amuleapi EC token file: %s")) % tokenPath);
+		return false;
+	}
 	return true;
+}
+
+void CamuleApp::ScheduleAmuleApiRestart()
+{
+	const uint64 now = theStats::GetUptimeMillis();
+	m_amuleApiRestart.Failed(now);
+	AddLogLineN(CFormat(_("amuleapi will restart in %u seconds.")) %
+		    static_cast<unsigned>(m_amuleApiRestart.DelayMs() / 1000));
+}
+
+void CamuleApp::OnAmuleApiTerminated(int pid, int status)
+{
+	if (pid != amuleapi_pid) {
+		return;
+	}
+	amuleapi_pid = 0;
+	m_amuleApiProcess = nullptr;
+	ClearAmuleApiToken();
+	if (status != 0 && IsRunning() && !m_amuleApiStopping && !g_shutdownSignal &&
+		thePrefs::GetAmuleApiIsEnabled()) {
+		ScheduleAmuleApiRestart();
+	} else {
+		m_amuleApiRestart.Cancel();
+	}
 }
 
 bool CamuleApp::ReinitializeNetwork(wxString *msg)
@@ -1789,6 +1921,7 @@ bool CamuleApp::RebindP2PSockets(bool tcpPortChanged, bool udpPortChanged, uint1
 #ifdef ENABLE_IPV6
 static std::optional<CNetworkAddress> s_advertisedIPv6Choice;
 static std::optional<CNetworkAddress> s_lastAdvertisedIPv6;
+static std::optional<CNetworkAddress> s_lastNotifiedIPv6;
 static std::optional<CNetworkAddress> s_lastKadPublishedIPv6;
 #endif
 
@@ -1845,6 +1978,10 @@ std::optional<CNetworkAddress> AdvertisedIPv6ForPeers()
 				    advertised->ToWxString());
 		} else {
 			AddLogLineN("No longer advertising an IPv6 address to peers");
+		}
+		if (ShouldMarkIPv6ChangeNotification(s_lastNotifiedIPv6, advertised) && theApp->clientlist) {
+			theApp->clientlist->MarkIPv6ChangeNotificationPending();
+			s_lastNotifiedIPv6 = advertised;
 		}
 		s_lastAdvertisedIPv6 = advertised;
 	}
@@ -2208,6 +2345,12 @@ void CamuleApp::OnCoreTimer(CTimerEvent &WXUNUSED(evt))
 		return;
 	}
 
+	// Search-list changes from local and remote clients are coalesced into a bounded-rate
+	// save, rather than rewriting every stored result set on each close or result packet.
+	if (searchlist) {
+		searchlist->StoreSearchesIfDirty(msCur);
+	}
+
 	// Check if we should terminate the app. OnShutdownSignal only sets the flag; the actual
 	// exit trigger runs from here (normal context) every CORE_TIMER_PERIOD ms.
 	if (g_shutdownSignal) {
@@ -2249,6 +2392,12 @@ void CamuleApp::OnCoreTimer(CTimerEvent &WXUNUSED(evt))
 		return;
 	}
 	recurse = true;
+
+	if (!thePrefs::GetAmuleApiIsEnabled() || m_amuleApiStopping || g_shutdownSignal) {
+		m_amuleApiRestart.Cancel();
+	} else if (!amuleapi_pid && m_amuleApiRestart.IsDue(msCur)) {
+		StartAmuleApi(false);
+	}
 
 #ifdef AMULE_UTP_TRANSPORT
 	// Unguarded like the queues below: ReinitializeNetwork() always constructs clientudp,
@@ -2381,10 +2530,15 @@ void CamuleApp::OnCoreTimer(CTimerEvent &WXUNUSED(evt))
 		m_ecTokenFileExpiryMs = 0;
 		const wxString tokenPath = wxString::FromUTF8(
 			webcommon::EcTokenFilePath(std::string(thePrefs::GetConfigDir().utf8_str())).c_str());
-		if (wxFileExists(tokenPath) && wxRemoveFile(tokenPath)) {
-			AddDebugLogLineN(logGeneral,
-				CFormat("amuleapi EC token file removed unread after %u ms: %s") %
-					EC_TOKEN_FILE_TTL_MS % tokenPath);
+		if (wxFileExists(tokenPath)) {
+			if (!wxRemoveFile(tokenPath)) {
+				// Retry cleanup after a transient filesystem failure.
+				m_ecTokenFileExpiryMs = msCur + EC_TOKEN_FILE_TTL_MS;
+			} else {
+				AddDebugLogLineN(logGeneral,
+					CFormat("amuleapi EC token file removed unread after %u ms: %s") %
+						EC_TOKEN_FILE_TTL_MS % tokenPath);
+			}
 		}
 	}
 

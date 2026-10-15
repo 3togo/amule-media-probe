@@ -1,6 +1,7 @@
 #ifndef AMULE_SHUTDOWN_STATUS_H
 #define AMULE_SHUTDOWN_STATUS_H
 
+#include <wx/app.h>
 #include <wx/dialog.h>
 #include <wx/evtloop.h>
 #include <wx/eventfilter.h>
@@ -70,9 +71,16 @@ private:
 		explicit RepaintFilter(wxWindow *window)
 		: m_window(window)
 		{
+			// Native loops on some ports drain pending wx events while yielding.
+			// Keep those events queued instead of consuming them in the filter.
+			wxTheApp->SuspendProcessingOfPendingEvents();
 			wxEvtHandler::AddFilter(this);
 		}
-		~RepaintFilter() override { wxEvtHandler::RemoveFilter(this); }
+		~RepaintFilter() override
+		{
+			wxEvtHandler::RemoveFilter(this);
+			wxTheApp->ResumeProcessingOfPendingEvents();
+		}
 
 		int FilterEvent(wxEvent &event) override
 		{

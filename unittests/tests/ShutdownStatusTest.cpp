@@ -54,6 +54,9 @@ int main(int argc, char **argv)
 					int paints = 0;
 					status.Bind(wxEVT_PAINT, [&](wxPaintEvent &event) {
 						++paints;
+						// Native loops can process pending wx events while yielding.
+						// Exercise that path on every port, including GTK.
+						wxTheApp->ProcessPendingEvents();
 						event.Skip();
 					});
 					wxQueueEvent(wxTheApp, new CMuleInternalEvent(internalType));
@@ -82,11 +85,14 @@ int main(int argc, char **argv)
 			trigger.StartOnce(1);
 			wxTheApp->OnRun();
 			if (!checked) {
+				std::cerr << "Shutdown test timer did not run\n";
 				result = 1;
 			}
 			// Pending core events and callbacks remain available after repainting.
 			wxTheApp->ProcessPendingEvents();
 			if (!internalRan || !callbackRan) {
+				std::cerr << "Pending events were lost: core=" << internalRan
+					  << ", callback=" << callbackRan << '\n';
 				result = 1;
 			}
 			wxTheApp->SetTopWindow(nullptr);

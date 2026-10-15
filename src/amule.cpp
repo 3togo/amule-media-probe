@@ -589,7 +589,7 @@ int CamuleApp::OnExit()
 	//     cleanup-time race is plausible.
 
 #ifndef AMULE_DAEMON
-	FinishShutdownStatus();
+	theApp->FinishShutdownStatus();
 #endif
 	ReleaseSingleInstance();
 	std::_Exit(0);
@@ -3074,7 +3074,7 @@ void CamuleApp::ReportShutdownStatus(const wxString &status)
 {
 	AddDebugLogLineN(logGeneral, status);
 #ifndef AMULE_DAEMON
-	UpdateShutdownStatus(status);
+	theApp->UpdateShutdownStatus(status);
 #endif
 }
 

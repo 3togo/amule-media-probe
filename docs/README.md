@@ -328,15 +328,35 @@ medium and cannot be held liable for non-personal copyright
 infringement or other illegal activity by third parties. Share
 responsibly.
 
+### Server-list sources
+
+`addresses.dat` in the aMule configuration directory holds an ordered list of
+HTTP or HTTPS URLs for `server.met` files, one per line. Blank lines and lines
+beginning with `#` are ignored, as are unsupported URLs and duplicate entries.
+aMule reads the file when an update sequence begins, so edits apply to the next
+sequence without restarting. It does not create or rewrite this file or install
+a default backup source.
+
+The existing automatic server-list update option downloads and merges all valid
+sources in order. Local users can edit the file through the Servers preferences
+editor. For a daemon, edit the file in the daemon's configuration directory;
+remote clients do not edit that file through this setting.
+
 ### Server-list download fallback
 
-Downloads from the configured `Ed2kServersUrl` in the `[eMule]` section of
-`amule.conf` retry once using `Ed2kServersFallbackUrl` if the primary request fails
-or the downloaded list is invalid. The default backup is
-`https://emuling.gitlab.io/server.met`. Set `Ed2kServersFallbackUrl=` to disable
-this retry, or set it to another HTTP/HTTPS server-list URL.
+A manual or first-run download tries the requested URL first. If that request
+fails, or its downloaded list is invalid or truncated, aMule tries the valid
+`addresses.dat` entries in order until a complete list is imported. This also
+applies to explicitly entered URLs and requests from remote clients. Each
+source is tried at most once; the requested URL is skipped if it also appears
+in the file. Existing server entries are preserved when a download is invalid.
 
-A successful primary download does not contact the backup. Cancelling a download
-also cancels failover. An explicitly entered URL that differs from the configured
-primary is used on its own. The list of automatic update sources in `addresses.dat`
-continues to be processed independently.
+A successful download, a not-modified response, or cancellation ends the
+sequence. An empty or absent `addresses.dat` disables additional attempts.
+Edits made during a download apply to the next sequence; overlapping manual
+requests do not replace the active sequence. Startup automatic updates continue
+to process their own source list independently.
+
+The former proposed `Ed2kServersFallbackUrl` setting is no longer used. If you
+used an earlier development build with that setting, put its intended backup
+URL in `addresses.dat` instead. No new backup URL is installed by default.

@@ -1,0 +1,25 @@
+server: prepare shared server-list sources in addresses.dat
+
+Related issue: https://github.com/amule-org/amule/issues/1354
+Existing PR: None; local proposal only
+Local branch: pr/1354-server-sources-draft
+Source branch: upstream/master
+Source commit: d2c9938aa88b504cfa84ab711e58fa4349d1a7e6
+
+Status
+New prerequisite proposal; implementation remains to be written.
+
+Proposed scope
+Use addresses.dat as the shared ordered list of alternate server.met sources. Document existing startup behavior and the configuration paths used by local and remote clients. Preserve user-maintained entries; do not replace existing files. Identify the operator, list-generation process and maintenance policy of any proposed shipped source. Add a default only after project agreement; no source is approved by this draft.
+
+Dependencies
+No dependency. Keep download retry behavior in the follow-up PR.
+
+Planned validation
+Check fresh and existing configurations, empty lists, source ordering, preservation of user entries and local/remote configuration behavior. Record source provenance separately from availability checks.
+
+Validation status
+No build or runtime checks were run for this drafting task. Previous PR validation must not be treated as validation of future revisions.
+
+Publication
+Local draft only. Do not push, submit, update or comment on GitHub without a further user instruction. Remove this planning file before publishing an implementation PR.

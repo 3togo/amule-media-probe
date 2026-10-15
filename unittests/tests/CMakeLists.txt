@@ -2420,6 +2420,7 @@ if (ENABLE_INTEGRATION_TESTS AND BUILD_DAEMON AND UNIX AND NOT APPLE)
 		add_test (NAME KadDistributionECTest COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/KadDistributionECTest.py $<TARGET_FILE:amuled>)
 		add_test (NAME KadPopulatedDistributionECTest COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/KadDistributionECTest.py $<TARGET_FILE:amuled> --populated)
 		set_tests_properties (KadPopulatedDistributionECTest PROPERTIES SKIP_RETURN_CODE 77)
+		target_compile_definitions (amuled PRIVATE AMULE_API_RESTART_TEST_HOOK)
 		add_test (NAME AmuleApiRestartIntegrationTest
 			COMMAND ${Python3_EXECUTABLE}
 				${CMAKE_CURRENT_SOURCE_DIR}/AmuleApiRestartIntegrationTest.py $<TARGET_FILE:amuled>
@@ -2694,6 +2695,31 @@ if (ENABLE_IP2COUNTRY)
 	target_link_libraries (MaxMindDBUpdateTest muleunit mulecommon MaxMindDB::Shared)
 	add_test (NAME MaxMindDBUpdateTest COMMAND MaxMindDBUpdateTest)
 endif()
+
+# Run the production query parser and packet writer without starting the application.
+# Link only the packet writer so no network/application stubs or linker stripping is needed.
+add_executable (SearchPacketTest
+	SearchPacketTest.cpp
+	${CMAKE_SOURCE_DIR}/src/SearchPacket.cpp
+	${CMAKE_SOURCE_DIR}/src/Parser.cpp
+	${CMAKE_SOURCE_DIR}/src/Scanner.cpp
+	${CMAKE_SOURCE_DIR}/src/MemFile.cpp
+	${CMAKE_SOURCE_DIR}/src/SafeFile.cpp
+	${CMAKE_SOURCE_DIR}/src/Tag.cpp
+	${CMAKE_SOURCE_DIR}/src/LoggerConsole.cpp
+)
+target_compile_definitions (SearchPacketTest PRIVATE AMULE_DAEMON)
+target_include_directories (SearchPacketTest PRIVATE
+	${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/src/include
+	${CMAKE_SOURCE_DIR}/src/libs ${CMAKE_BINARY_DIR}/src/libs
+	${CMAKE_BINARY_DIR}/src/libs/ec/cpp
+)
+target_link_libraries (SearchPacketTest PRIVATE muleunit mulecommon)
+if (ENABLE_NLS AND Intl_FOUND)
+	target_include_directories (SearchPacketTest PRIVATE ${Intl_INCLUDE_DIRS})
+	target_link_libraries (SearchPacketTest PRIVATE ${Intl_LIBRARIES})
+endif()
+add_test (NAME SearchPacketTest COMMAND SearchPacketTest)
 
 # Retry scheduling for the core-supervised API child.
 add_executable (AmuleApiRestartTest AmuleApiRestartTest.cpp)

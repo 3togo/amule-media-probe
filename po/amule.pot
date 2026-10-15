@@ -7013,11 +7013,6 @@ msgstr ""
 msgid "Kad search: no peer left to reask for more results (cap reached or no responses yet)."
 msgstr ""
 
-#: src/SearchList.cpp
-#, c-format
-msgid "Error %u: %s\n"
-msgstr ""
-
 #: src/SearchListCtrl.cpp
 msgid "FileID"
 msgstr ""
@@ -7080,6 +7075,11 @@ msgstr ""
 
 #: src/SearchModeIcons.h
 msgid "Search eD2k servers and Kad, using whichever networks are available."
+msgstr ""
+
+#: src/SearchPacket.cpp
+#, c-format
+msgid "Error %u: %s\n"
 msgstr ""
 
 #: src/SearchProgressReport.cpp

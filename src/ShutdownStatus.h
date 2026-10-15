@@ -3,6 +3,7 @@
 
 #include <wx/dialog.h>
 #include <wx/evtloop.h>
+#include <wx/eventfilter.h>
 #include <wx/sizer.h>
 #include <wx/stattext.h>
 
@@ -43,6 +44,7 @@ public:
 
 	void SetStatus(const wxString &status)
 	{
+		RepaintFilter filter(this);
 		m_status->SetLabel(status);
 		m_status->Wrap(m_status->GetSize().x);
 		Refresh();
@@ -59,6 +61,34 @@ public:
 	}
 
 private:
+	// GTK's nested native loop dispatches GLib timer sources even when YieldFor
+	// requests only UI events. Block every wx event outside this window while
+	// repainting, including those timers and events directed at the application.
+	class RepaintFilter : public wxEventFilter
+	{
+	public:
+		explicit RepaintFilter(wxWindow *window)
+		: m_window(window)
+		{
+			wxEvtHandler::AddFilter(this);
+		}
+		~RepaintFilter() override { wxEvtHandler::RemoveFilter(this); }
+
+		int FilterEvent(wxEvent &event) override
+		{
+			for (auto *window = wxDynamicCast(event.GetEventObject(), wxWindow); window;
+				window = window->GetParent()) {
+				if (window == m_window) {
+					return Event_Skip;
+				}
+			}
+			return Event_Processed;
+		}
+
+	private:
+		wxWindow *m_window;
+	};
+
 	wxStaticText *m_status;
 };
 

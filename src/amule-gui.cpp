@@ -162,7 +162,7 @@ void CamuleGuiBase::ApplyConfiguredAppearance()
 	}
 #endif
 	if (wxTheApp->SetAppearance(appearance) != wxApp::AppearanceResult::Ok) {
-		AddDebugLogLineN(logStandard, "Could not apply the configured light/dark appearance");
+		AddDebugLogLineN(logGeneral, "Could not apply the configured light/dark appearance");
 	}
 #endif
 }

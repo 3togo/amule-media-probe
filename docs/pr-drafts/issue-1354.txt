@@ -1,0 +1,25 @@
+gui: add synchronized bandwidth limit sliders
+
+Related issue: https://github.com/amule-org/amule/issues/1354
+Existing PR: https://github.com/amule-org/amule/pull/1920
+Local branch: pr/1354-bandwidth-sliders-draft
+Source branch: gui/bandwidth-sliders-1354
+Source commit: 1f773af261fe998c2f583a91ad137a5f091bd9d1
+
+Status
+Existing implementation retained; this commit adds a local PR draft only.
+
+Proposed scope
+Synchronize upload and download sliders with the numeric controls. Preserve unlimited semantics and the saved limits. Keep the separate bandwidth-equivalents request out of this PR.
+
+Dependencies
+Independent. Existing bandwidth-equivalents work is already tracked in PR #1921; do not duplicate it here.
+
+Planned validation
+Check numeric-to-slider and slider-to-numeric updates, unlimited values, bounds, persistence, keyboard navigation, resizing and translated labels.
+
+Validation status
+No build or runtime checks were run for this drafting task. Previous PR validation must not be treated as validation of future revisions.
+
+Publication
+Local draft only. Do not push, submit, update or comment on GitHub without a further user instruction. Remove this planning file before publishing an implementation PR.

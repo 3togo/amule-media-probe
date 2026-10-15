@@ -2184,6 +2184,17 @@ wxSizer *PreferencesaMuleTweaksTab( wxWindow *parent, bool call_fit, bool set_si
 wxSizer *PreferencesGuiTweaksTab( wxWindow *parent, bool call_fit, bool set_sizer )
 {
     wxBoxSizer *item0 = new wxBoxSizer( wxVERTICAL );
+#if wxCHECK_VERSION(3, 3, 0)
+    item0->Add(new wxStaticText(parent, wxID_ANY, _("Appearance")), wxSizerFlags().Border(wxTOP, 5));
+    auto *appearance = new wxChoice(parent, IDC_APPEARANCE);
+    appearance->Append(_("Follow system"));
+    appearance->Append(_("Light"));
+    appearance->Append(_("Dark"));
+    item0->Add(appearance, wxSizerFlags().Expand());
+    item0->Add(new wxStaticText(parent, wxID_ANY, _("Appearance changes take effect after restarting aMule.")),
+        wxSizerFlags().Border(wxBOTTOM, 10));
+#endif
+
 
     wxBoxSizer *item1 = new wxBoxSizer( wxHORIZONTAL );
 

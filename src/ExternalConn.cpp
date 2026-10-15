@@ -3875,13 +3875,12 @@ CECPacket *CECServerSocket::ProcessRequest2(const CECPacket *request)
 	} break;
 	case EC_OP_SERVER_UPDATE_FROM_URL: {
 		wxString url = request->GetFirstTagSafe()->GetStringData();
-		const bool allowFallback = url == thePrefs::GetEd2kServersUrl();
 
 		// Save the new url, and update the UI (if not amuled).
 		Notify_ServersURLChanged(url);
 		thePrefs::SetEd2kServersUrl(url);
 
-		theApp->serverlist->UpdateServerMetFromURL(url, false, allowFallback);
+		theApp->serverlist->UpdateServerMetFromURL(url);
 		response = new CECPacket(EC_OP_NOOP);
 		break;
 	}

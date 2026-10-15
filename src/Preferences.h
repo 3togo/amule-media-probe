@@ -786,7 +786,6 @@ public:
 	static void SetKadNodesUrl(const wxString &url) { s_KadURL = url; }
 
 	static const wxString &GetEd2kServersUrl() { return s_Ed2kURL; }
-	static const wxString &GetEd2kServersFallbackUrl() { return s_Ed2kFallbackURL; }
 	static void SetEd2kServersUrl(const wxString &url) { s_Ed2kURL = url; }
 
 	// Crypt
@@ -1159,7 +1158,6 @@ protected:
 	static bool s_DropSlowSources;
 
 	static wxString s_Ed2kURL;
-	static wxString s_Ed2kFallbackURL;
 	static wxString s_KadURL;
 
 	// Crypt

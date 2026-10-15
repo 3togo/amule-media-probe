@@ -808,26 +808,22 @@ void CServerList::RemoveDeadServers()
 	}
 }
 
-void CServerList::UpdateServerMetFromURL(const wxString &strURL, bool showDialog, bool allowFallback)
+void CServerList::UpdateServerMetFromURL(const wxString &strURL, bool showDialog)
 {
 	if (m_serverMetDownloading) {
 		AddLogLineN(_("A server list download is already in progress."));
 		return;
 	}
-	const wxURI uri(strURL);
-	const wxString scheme = uri.GetScheme().Lower();
-	if (!uri.HasServer() || (scheme != "http" && scheme != "https")) {
+	if (!ServerListSources::IsValid(strURL)) {
 		AddLogLineC(_("Invalid URL"));
 		return;
 	}
-	// Only the configured primary uses the backup. An explicitly entered URL
-	// must not silently fetch a different list. An empty backup disables failover.
-	m_serverMetFallback = allowFallback && strURL == thePrefs::GetEd2kServersUrl()
-				      ? thePrefs::GetEd2kServersFallbackUrl()
-				      : wxString();
-	if (m_serverMetFallback == strURL) {
-		m_serverMetFallback.clear();
+	m_serverMetFallbacks = ServerListSources::Read(thePrefs::GetConfigDir() + "addresses.dat");
+	const int requested = m_serverMetFallbacks.Index(strURL);
+	if (requested != wxNOT_FOUND) {
+		m_serverMetFallbacks.RemoveAt(static_cast<size_t>(requested));
 	}
+	m_serverMetFallbackIndex = 0;
 	StartServerMetDownload(strURL, showDialog);
 }
 
@@ -863,18 +859,21 @@ bool CServerList::DownloadFinished(uint32 result)
 		}
 		CPath::RemoveFile(temporary);
 	}
+	if (result == HTTP_Skipped) {
+		AddLogLineN(CFormat(_("Skipped download of %s, because requested file is not newer.")) %
+			    "server.met");
+	}
 	if (loaded || result == HTTP_Skipped || result == HTTP_Cancelled) {
-		m_serverMetFallback.clear();
+		m_serverMetFallbacks.clear();
 		return loaded;
 	}
 	AddLogLineC(CFormat(_("Failed to download %s from %s")) % "server.met" % m_serverMetURL);
-	const wxString fallback = m_serverMetFallback;
-	m_serverMetFallback.clear(); // Exactly one retry, including a malformed backup.
-	const wxURI uri(fallback);
-	const wxString scheme = uri.GetScheme().Lower();
-	if (uri.HasServer() && (scheme == "http" || scheme == "https")) {
+	if (m_serverMetFallbackIndex < m_serverMetFallbacks.size()) {
+		const wxString fallback = m_serverMetFallbacks[m_serverMetFallbackIndex++];
 		AddLogLineN(CFormat(_("Trying the backup server list from %s")) % fallback);
 		StartServerMetDownload(fallback, m_serverMetShowDialog);
+	} else {
+		m_serverMetFallbacks.clear();
 	}
 	return false;
 }

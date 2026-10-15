@@ -1,0 +1,15 @@
+Local validation: revision of PR #1923
+
+Implementation branch: pr/1354-server-fallback-draft
+Prerequisite: pr/1354-server-sources-draft (merged locally).
+Publication: not pushed; the published feature/server-list-fallback-1354 branch is unchanged by this work.
+
+Passed:
+- Combined Debug builds of amule, amulegui and amuled on Linux/wxGTK 3.2.11. An additional final build verifies the restored not-modified log message.
+- CTest IntegrationFixtureUnitTest, ServerListSourcesTest and ServerMetTest.
+- ServerListSourcesIntegrationTest against the revised daemon: automatic updates still merge all configured sources independently.
+- ServerListFallbackIntegrationTest.py against the revised daemon: 17 HTTP/EC scenarios covering primary success, first run, HTTP errors, invalid and truncated primary lists, multiple ordered retries, exhaustion, invalid/truncated backups, missing/empty source files, explicitly entered alternate URLs, duplicate sources, live file edits, overlap protection, a stable active snapshot, preservation of existing entries and HTTP 304 without failover.
+- clang-format-18 on changed C++ code and clang-tidy-18 core analysis plus changed-line project checks; no reported code diagnostics. The same LLVM-18-compatible temporary configurations described in server-sources-validation.txt were used.
+- POTFILES check, template regeneration, Python syntax checks and git diff --check. Template drift is checked after committing the regenerated template.
+
+Native GUI Cancel was not exercised. The existing HTTP_Cancelled result handling is preserved, clears pending manual fallbacks and prevents a retry; shutdown also stops manual retries. Native Windows/macOS runtime checks remain outstanding. No new default source is installed, pending project agreement.

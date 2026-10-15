@@ -661,7 +661,7 @@ msgstr ""
 msgid "ServerMessage: %s"
 msgstr ""
 
-#: src/amule.cpp src/IP2Country.cpp src/IPFilter.cpp
+#: src/amule.cpp src/IP2Country.cpp src/IPFilter.cpp src/ServerList.cpp
 #, c-format
 msgid "Skipped download of %s, because requested file is not newer."
 msgstr ""

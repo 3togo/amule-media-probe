@@ -1,25 +1,13 @@
 server: retry failed server-list downloads using addresses.dat
 
-Related issue: https://github.com/amule-org/amule/issues/1354
-Existing PR: https://github.com/amule-org/amule/pull/1923
-Local branch: pr/1354-server-fallback-draft
-Source branch: feature/server-list-fallback-1354
-Source commit: 14eb0166022a2cb0c2195a999ab5b91e9c207c11
+Local revision of https://github.com/amule-org/amule/pull/1923, part of #1354. Do not publish yet.
 
-Status
-Existing implementation retained as a starting point; proposed redesign is not implemented in this draft.
+Depends on pr/1354-server-sources-draft. Its shared addresses.dat reader and startup regression test are merged into this branch. Published #1923 history is preserved, with upstream master merged before the prerequisite.
 
-Proposed scope
-Replace Ed2kServersFallbackUrl with the addresses.dat sequence. Apply fallback after any requested URL fails, including explicitly entered alternate URLs. Skip duplicate URLs and attempt each candidate at most once. Cancellation must terminate the sequence. Preserve complete parsing before imports, existing entries after invalid downloads, and separation of manual and automatic update state.
+Attempt the requested URL first, then each distinct HTTP/HTTPS URL in addresses.dat in file order until one downloads and parses completely. Apply this to first-run requests, the local GUI, and EC requests used by remote clients, including explicitly entered alternate URLs. Skip the originally requested URL if it also occurs in addresses.dat. Stop after success, a not-modified result, cancellation or exhaustion.
 
-Dependencies
-Depends on pr/1354-server-sources-draft. This branch currently retains the old fallback setting and default; remove both during implementation. Do not publish the current implementation as the agreed redesign.
+Capture the source list when the sequence begins. Ignore overlapping manual download requests without changing that snapshot; keep automatic update sources and download state separate. Preserve complete parsing before imports and existing entries after invalid/truncated downloads. Retain local startup-file salvage.
 
-Planned validation
-Exercise primary success, HTTP failure, invalid/truncated candidates, exhaustion, duplicate sources, empty addresses.dat, explicit URL failure, cancellation, overlapping requests and preservation of existing entries. Re-run GUI, daemon, EC and Web UI paths.
+Remove Ed2kServersFallbackUrl and its proposed default source. Empty or absent addresses.dat disables additional attempts. No new default backup is shipped; source selection requires project agreement. Existing configurations from the earlier PR should place their intended fallback in addresses.dat instead of the removed setting.
 
-Validation status
-No build or runtime checks were run for this drafting task. Previous PR validation must not be treated as validation of future revisions.
-
-Publication
-Local draft only. Do not push, submit, update or comment on GitHub without a further user instruction. Remove this planning file before publishing an implementation PR.
+Validation: see server-fallback-validation.txt. The fallback integration test now covers 17 local-HTTP/daemon scenarios, including ordered retries, malformed lists, existing entries, first run, explicitly entered URLs, duplicates, live file edits, overlapping requests and HTTP 304. Native GUI Cancel remains a manual runtime check; its cancellation result handling is retained.

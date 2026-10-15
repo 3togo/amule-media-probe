@@ -27,6 +27,7 @@
 #define SERVERLIST_H
 
 #include "ObservableQueue.h"
+#include <wx/arrstr.h>
 
 class CServer;
 class CPacket;
@@ -105,7 +106,8 @@ private:
 	wxString m_staticServersConfig;
 	void LoadStaticServers();
 	void SaveStaticServers();
-	uint8 current_url_index;
+	size_t current_url_index = 0;
+	wxArrayString m_autoUpdateURLs;
 
 	typedef std::list<CServer *> CInternalList;
 	CInternalList m_servers;

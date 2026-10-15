@@ -1,0 +1,25 @@
+gui: show shutdown stages while saving and closing
+
+Related issue: https://github.com/amule-org/amule/issues/1354
+Existing PR: https://github.com/amule-org/amule/pull/1924
+Local branch: pr/1354-shutdown-status-draft
+Source branch: gui/shutdown-status-1354
+Source commit: ee36c5133a79addb3b621de517fc6b286b272827
+
+Status
+Existing implementation retained; this commit adds a local PR draft only.
+
+Proposed scope
+Display meaningful shutdown stages during background cleanup and saving. Keep shutdown safe when windows close or events arrive during repainting; preserve daemon and remote-GUI behavior.
+
+Dependencies
+Independent.
+
+Planned validation
+Check fast and slow shutdown, queued events, repaint responsiveness, repeated close requests and successful persistence. Verify GUI and daemon builds and distinguish remote disconnect from daemon shutdown.
+
+Validation status
+No build or runtime checks were run for this drafting task. Previous PR validation must not be treated as validation of future revisions.
+
+Publication
+Local draft only. Do not push, submit, update or comment on GitHub without a further user instruction. Remove this planning file before publishing an implementation PR.

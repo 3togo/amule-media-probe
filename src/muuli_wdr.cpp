@@ -36,6 +36,7 @@
 
 // Include private header
 #include "muuli_wdr.h"
+#include "BandwidthLimitSlider.h"
 
 #include "amuleDlg.h" // Needed for CLIENT_SKIN_SIZE (clientImages' artIds static_assert)
 #include "KadContactHistogram.h"
@@ -1536,6 +1537,13 @@ wxSizer *PreferencesConnectionTab( wxWindow *parent, bool call_fit, bool set_siz
     wxStaticText *item12 = new wxStaticText( item2, -1, _("KiB/s"), wxDefaultPosition, wxDefaultSize, 0 );
     item3->Add( item12, wxSizerFlags().CenterVertical().Border(wxLEFT, 5) );
     item1->Add( item3, wxSizerFlags().Expand().CenterVertical().Border(wxALL, 0) );
+    item1->Add(new wxStaticText(item2, wxID_ANY, _("Download limit (KiB/s)")), wxSizerFlags().Border(wxTOP, 5));
+    auto *downloadSlider = new BandwidthLimitSlider(item2, IDC_DOWNLOAD_LIMIT_SLIDER, item5);
+    item1->Add(downloadSlider, wxSizerFlags().Expand());
+    item1->Add(new wxStaticText(item2, wxID_ANY, _("Upload limit (KiB/s)")), wxSizerFlags().Border(wxTOP, 5));
+    auto *uploadSlider = new BandwidthLimitSlider(item2, IDC_UPLOAD_LIMIT_SLIDER, item8);
+    item1->Add(uploadSlider, wxSizerFlags().Expand());
+
     item0->Add( item1, wxSizerFlags().Expand().CenterHorizontal() );
     wxStaticBox *item14 = new wxStaticBox( parent, -1, _("Ports") );
     wxStaticBoxSizer *item13 = new wxStaticBoxSizer( item14, wxVERTICAL );

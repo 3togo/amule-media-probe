@@ -814,17 +814,30 @@ void CServerList::UpdateServerMetFromURL(const wxString &strURL, bool showDialog
 		AddLogLineN(_("A server list download is already in progress."));
 		return;
 	}
-	if (!ServerListSources::IsValid(strURL)) {
-		AddLogLineC(_("Invalid URL"));
-		return;
-	}
 	m_serverMetFallbacks = ServerListSources::Read(thePrefs::GetConfigDir() + "addresses.dat");
 	const int requested = m_serverMetFallbacks.Index(strURL);
 	if (requested != wxNOT_FOUND) {
 		m_serverMetFallbacks.RemoveAt(static_cast<size_t>(requested));
 	}
 	m_serverMetFallbackIndex = 0;
-	StartServerMetDownload(strURL, showDialog);
+	m_serverMetShowDialog = showDialog;
+	if (ServerListSources::IsValid(strURL)) {
+		StartServerMetDownload(strURL, showDialog);
+	} else {
+		AddLogLineC(_("Invalid URL"));
+		StartNextServerMetDownload();
+	}
+}
+
+void CServerList::StartNextServerMetDownload()
+{
+	if (m_serverMetFallbackIndex < m_serverMetFallbacks.size()) {
+		const wxString fallback = m_serverMetFallbacks[m_serverMetFallbackIndex++];
+		AddLogLineN(CFormat(_("Trying the backup server list from %s")) % fallback);
+		StartServerMetDownload(fallback, m_serverMetShowDialog);
+	} else {
+		m_serverMetFallbacks.clear();
+	}
 }
 
 void CServerList::StartServerMetDownload(const wxString &url, bool showDialog)
@@ -868,13 +881,7 @@ bool CServerList::DownloadFinished(uint32 result)
 		return loaded;
 	}
 	AddLogLineC(CFormat(_("Failed to download %s from %s")) % "server.met" % m_serverMetURL);
-	if (m_serverMetFallbackIndex < m_serverMetFallbacks.size()) {
-		const wxString fallback = m_serverMetFallbacks[m_serverMetFallbackIndex++];
-		AddLogLineN(CFormat(_("Trying the backup server list from %s")) % fallback);
-		StartServerMetDownload(fallback, m_serverMetShowDialog);
-	} else {
-		m_serverMetFallbacks.clear();
-	}
+	StartNextServerMetDownload();
 	return false;
 }
 
@@ -906,6 +913,10 @@ void CServerList::AutoUpdate()
 
 void CServerList::AutoDownloadFinished(uint32 result)
 {
+	if (theApp->IsOnShutDown() || result == HTTP_Cancelled) {
+		m_autoUpdateURLs.clear();
+		return;
+	}
 	if (result == HTTP_Success) {
 		CPath tempFilename = CPath(thePrefs::GetConfigDir() + "server_auto.met");
 

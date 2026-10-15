@@ -100,6 +100,7 @@ private:
 	virtual void ObserverAdded(ObserverType *);
 	void AutoUpdate();
 	void StartServerMetDownload(const wxString &url, bool showDialog);
+	void StartNextServerMetDownload();
 	CServer *GetNextStatServer();
 
 	wxString m_staticServersConfig;

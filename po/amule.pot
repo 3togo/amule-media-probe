@@ -7381,12 +7381,12 @@ msgstr ""
 
 #: src/ServerList.cpp
 #, c-format
-msgid "Finished downloading the server list from %s"
+msgid "Trying the backup server list from %s"
 msgstr ""
 
 #: src/ServerList.cpp
 #, c-format
-msgid "Trying the backup server list from %s"
+msgid "Finished downloading the server list from %s"
 msgstr ""
 
 #: src/ServerList.cpp

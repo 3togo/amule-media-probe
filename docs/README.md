@@ -344,8 +344,9 @@ remote clients do not edit that file through this setting.
 
 ### Server-list download fallback
 
-A manual or first-run download tries the requested URL first. If that request
-fails, or its downloaded list is invalid or truncated, aMule tries the valid
+A manual or first-run download tries the requested URL first. If the URL is
+invalid, the request fails, or the downloaded list is invalid or truncated,
+aMule tries the valid
 `addresses.dat` entries in order until a complete list is imported. This also
 applies to explicitly entered URLs and requests from remote clients. Each
 source is tried at most once; the requested URL is skipped if it also appears

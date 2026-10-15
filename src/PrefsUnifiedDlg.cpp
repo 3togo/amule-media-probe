@@ -25,6 +25,7 @@
 
 #include "PrefsUnifiedDlg.h"
 #include "DialogLayout.h"
+#include "BandwidthEquivalentLabel.h"
 
 #include <common/Constants.h>
 #include <common/Macros.h> // Needed for itemsof()
@@ -712,6 +713,8 @@ bool PrefsUnifiedDlg::TransferToWindow()
 				     it->first % it->second->GetKey());
 		}
 	}
+
+	SyncBandwidthEquivalents(this);
 
 #ifdef CLIENT_GUI
 	// Cfg transfer can re-enable command fields from saved checkbox values.
@@ -2597,6 +2600,7 @@ void PrefsUnifiedDlg::OnRateLimitChanged(wxSpinEvent &event)
 			}
 		}
 	}
+	SyncBandwidthEquivalents(this);
 }
 
 void PrefsUnifiedDlg::OnTCPClientPortChange(wxSpinEvent &WXUNUSED(event))

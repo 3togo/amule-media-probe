@@ -36,6 +36,7 @@
 
 // Include private header
 #include "muuli_wdr.h"
+#include "BandwidthEquivalentLabel.h"
 
 #include "amuleDlg.h" // Needed for CLIENT_SKIN_SIZE (clientImages' artIds static_assert)
 #include "KadContactHistogram.h"
@@ -1518,7 +1519,7 @@ wxSizer *PreferencesConnectionTab( wxWindow *parent, bool call_fit, bool set_siz
     wxSpinCtrl *item5 = new wxSpinCtrl( item2, IDC_MAXDOWN, "0", wxDefaultPosition, wxDefaultSize, 0, 0, 1000000, 0 );
     item3->Add( item5, 0, wxALIGN_CENTER_VERTICAL, 0 );
 
-    wxStaticText *item6 = new wxStaticText( item2, -1, _("KiB/s"), wxDefaultPosition, wxDefaultSize, 0 );
+    wxStaticText *item6 = new BandwidthEquivalentLabel(item2, IDC_DOWNLOAD_EQUIVALENT, item5);
     item3->Add( item6, wxSizerFlags().CenterVertical().Border(wxLEFT, 5) );
     wxStaticText *item7 = new wxStaticText( item2, -1, _("Upload"), wxDefaultPosition, wxDefaultSize, 0 );
     item3->Add( item7, 0, wxALIGN_CENTER_VERTICAL, 0 );
@@ -1526,7 +1527,7 @@ wxSizer *PreferencesConnectionTab( wxWindow *parent, bool call_fit, bool set_siz
     wxSpinCtrl *item8 = new wxSpinCtrl( item2, IDC_MAXUP, "10", wxDefaultPosition, wxDefaultSize, 0, 0, 1000000, 10 );
     item3->Add( item8, wxSizerFlags().CenterVertical() );
 
-    wxStaticText *item9 = new wxStaticText( item2, -1, _("KiB/s"), wxDefaultPosition, wxDefaultSize, 0 );
+    wxStaticText *item9 = new BandwidthEquivalentLabel(item2, IDC_UPLOAD_EQUIVALENT, item8);
     item3->Add( item9, wxSizerFlags().CenterVertical().Border(wxLEFT, 5) );
     wxStaticText *item10 = new wxStaticText( item2, -1, _("Slot Allocation"), wxDefaultPosition, wxDefaultSize, 0 );
     item3->Add( item10, wxSizerFlags().CenterVertical().Border(wxLEFT, 20) );

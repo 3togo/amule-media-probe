@@ -254,7 +254,9 @@ struct PrefsPage
 };
 
 PrefsPage pages[] = { { wxTRANSLATE("General"), PreferencesGeneralTab, 13, "prefs_general" },
+	{ wxTRANSLATE("Interface"), PreferencesGuiTweaksTab, 19, "prefs_interface" },
 	{ wxTRANSLATE("Connection"), PreferencesConnectionTab, 14, "prefs_connection" },
+	{ wxTRANSLATE("Servers"), PreferencesServerTab, 15, "prefs_servers" },
 	{ wxTRANSLATE("Directories"), PreferencesDirectoriesTab, 17, "prefs_directories" },
 #ifdef CLIENT_GUI
 	// Remote-only (issue #843): mapping a daemon's path space onto this machine's has no
@@ -262,15 +264,10 @@ PrefsPage pages[] = { { wxTRANSLATE("General"), PreferencesGeneralTab, 13, "pref
 	// Directories, the other page about paths.
 	{ wxTRANSLATE("Path Mappings"), PreferencesPathMappingTab, 17, "prefs_pathmapping" },
 #endif
-	{ wxTRANSLATE("Servers"), PreferencesServerTab, 15, "prefs_servers" },
 	{ wxTRANSLATE("Files"), PreferencesFilesTab, 16, "prefs_files" },
 	{ wxTRANSLATE("Security"), PreferencesSecurityTab, 22, "prefs_security" },
-	{ wxTRANSLATE("Interface"), PreferencesGuiTweaksTab, 19, "prefs_interface" },
 #ifdef GEOIP_GUI
-	// Inserted between Interface and Statistics so the GeoIP / country-flag settings sit
-	// next to the related display option. Hidden from the page list when ENABLE_IP2COUNTRY
-	// is off, so users who built without libmaxminddb do not see a panel that cannot
-	// function.
+	// Hidden when ENABLE_IP2COUNTRY is off: builds without libmaxminddb cannot use it.
 	{ wxTRANSLATE("IP2Country"), PreferencesIP2CountryTab, 13, "prefs_ip2country" },
 #endif
 	{ wxTRANSLATE("Statistics"), PreferencesStatisticsTab, 10, "prefs_statistics" },

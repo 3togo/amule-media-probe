@@ -661,7 +661,7 @@ msgstr ""
 msgid "ServerMessage: %s"
 msgstr ""
 
-#: src/amule.cpp src/IP2Country.cpp src/IPFilter.cpp src/ServerList.cpp
+#: src/amule.cpp src/IP2Country.cpp src/IPFilter.cpp
 #, c-format
 msgid "Skipped download of %s, because requested file is not newer."
 msgstr ""
@@ -7367,12 +7367,21 @@ msgid "IO failure while writing 'server.met': %s"
 msgstr ""
 
 #: src/ServerList.cpp
+msgid "A server list download is already in progress."
+msgstr ""
+
+#: src/ServerList.cpp
 msgid "Invalid URL"
 msgstr ""
 
 #: src/ServerList.cpp
 #, c-format
 msgid "Finished downloading the server list from %s"
+msgstr ""
+
+#: src/ServerList.cpp
+#, c-format
+msgid "Trying the backup server list from %s"
 msgstr ""
 
 #: src/ServerList.cpp

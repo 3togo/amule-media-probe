@@ -9,6 +9,7 @@ function (add_application_test_stubs target)
 endfunction()
 
 find_package (Python3 QUIET COMPONENTS Interpreter)
+
 if (Python3_Interpreter_FOUND)
 	add_test (NAME IntegrationFixtureUnitTest
 		COMMAND ${Python3_EXECUTABLE} -u ${CMAKE_CURRENT_SOURCE_DIR}/IntegrationFixtureUnitTest.py -v
@@ -32,12 +33,15 @@ if (BUILD_MONOLITHIC OR BUILD_REMOTEGUI)
 		${CMAKE_SOURCE_DIR}/src/icons/icon_data.c
 	)
 	target_include_directories (IconArtworkTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
-	target_link_libraries (IconArtworkTest PRIVATE wxWidgets::CORE)
+	find_package (Threads REQUIRED)
+	target_link_libraries (IconArtworkTest PRIVATE wxWidgets::CORE Threads::Threads)
 	if (WIN32)
 		# wx core imports Common Controls v6 entry points. Match the GUI's
 		# activation context and DPI awareness before the DLL loader runs.
 		target_sources (IconArtworkTest PRIVATE IconArtworkTest.rc)
 		target_include_directories (IconArtworkTest PRIVATE ${CMAKE_SOURCE_DIR})
+		# MiniDumpWriteDump for the hang watchdog.
+		target_link_libraries (IconArtworkTest PRIVATE dbghelp)
 	endif()
 	if (APPLE)
 		target_sources (IconArtworkTest PRIVATE ${CMAKE_SOURCE_DIR}/src/MenuIcons_mac.mm)
@@ -2476,6 +2480,10 @@ if (ENABLE_INTEGRATION_TESTS AND BUILD_DAEMON AND UNIX AND NOT APPLE)
 			COMMAND ${Python3_EXECUTABLE}
 				${CMAKE_CURRENT_SOURCE_DIR}/KnownHistoryIntegrationTest.py $<TARGET_FILE:amuled>
 		)
+		add_test (NAME PacketReceiveIntegrationTest
+			COMMAND ${Python3_EXECUTABLE}
+				${CMAKE_CURRENT_SOURCE_DIR}/PacketReceiveIntegrationTest.py $<TARGET_FILE:amuled>
+		)
 		add_test (NAME ServerTrustIntegrationTest
 			COMMAND ${Python3_EXECUTABLE}
 				${CMAKE_CURRENT_SOURCE_DIR}/ServerTrustIntegrationTest.py $<TARGET_FILE:amuled>
@@ -2663,6 +2671,11 @@ add_executable (RemoteDownloadEventsTest RemoteDownloadEventsTest.cpp)
 add_test (NAME RemoteDownloadEventsTest COMMAND RemoteDownloadEventsTest)
 target_include_directories (RemoteDownloadEventsTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries (RemoteDownloadEventsTest muleunit mulecommon)
+
+add_executable (DiskSpaceResumeBudgetTest DiskSpaceResumeBudgetTest.cpp)
+target_include_directories (DiskSpaceResumeBudgetTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries (DiskSpaceResumeBudgetTest muleunit mulecommon)
+add_test (NAME DiskSpaceResumeBudgetTest COMMAND DiskSpaceResumeBudgetTest)
 
 add_executable (GeoIPUpdateScheduleTest GeoIPUpdateScheduleTest.cpp)
 target_include_directories (GeoIPUpdateScheduleTest PRIVATE ${CMAKE_SOURCE_DIR}/src)

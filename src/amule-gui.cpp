@@ -22,6 +22,7 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA
 //
 
+#include "ShutdownStatus.h"
 #include "amule.h"                  // Interface declarations.
 #include "ProtocolHandlerManager.h" // Needed for ProtocolHandler_QueueSchemeLink
 
@@ -157,6 +158,26 @@ void CamuleGuiBase::FollowSystemAppearance()
 		AddDebugLogLineN(logStandard, "Could not follow the system light/dark appearance");
 	}
 #endif
+}
+
+void CamuleGuiBase::BeginShutdownStatus()
+{
+	if (!m_shutdownStatus) {
+		m_shutdownStatus = new CShutdownStatus();
+	}
+}
+
+void CamuleGuiBase::UpdateShutdownStatus(const wxString &status)
+{
+	if (m_shutdownStatus) {
+		m_shutdownStatus->SetStatus(status);
+	}
+}
+
+void CamuleGuiBase::FinishShutdownStatus()
+{
+	delete m_shutdownStatus;
+	m_shutdownStatus = nullptr;
 }
 
 void CamuleGuiBase::ApplyToolTipDelay()
@@ -353,8 +374,13 @@ void CamuleGuiApp::ShutDown(wxCloseEvent &WXUNUSED(evt))
 	}
 
 	amuledlg->DlgShutDown();
-	amuledlg->Destroy();
+	amuledlg->Disable();
+	amuledlg->Hide();
+	BeginShutdownStatus();
 	CamuleApp::ShutDown();
+	amuledlg->Destroy();
+	// The status window stays alive through OnExit's persistence and destructors.
+	ExitMainLoop();
 }
 
 // macOS Dock right-click Quit bypasses OnClose. wx posts a session-end event for this path; drive

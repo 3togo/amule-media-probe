@@ -475,6 +475,7 @@ public:
 	wxLocale m_locale;
 
 	void ShutDown();
+	void ReportShutdownStatus(const wxString &status);
 
 	wxString GetLog(bool reset = false);
 	wxString GetServerLog(bool reset = false);
@@ -671,6 +672,8 @@ private:
 
 #ifndef AMULE_DAEMON
 
+class CShutdownStatus;
+
 class CamuleGuiBase
 {
 public:
@@ -694,6 +697,10 @@ public:
 	/// exists, so anywhere later silently does nothing.
 	static void FollowSystemAppearance();
 
+	void BeginShutdownStatus();
+	void UpdateShutdownStatus(const wxString &status);
+	void FinishShutdownStatus();
+
 	/// Applies the stored tooltip delay, which wx keeps process-wide.
 	static void ApplyToolTipDelay();
 
@@ -703,6 +710,9 @@ public:
 	virtual int ShowAlert(wxString msg, wxString title, int flags);
 
 	void AddGuiLogLine(const wxString &line);
+
+private:
+	CShutdownStatus *m_shutdownStatus = nullptr;
 
 protected:
 	/// Log messages queued for the GUI while it cannot display them yet, i.e. until the dialog

@@ -1,0 +1,65 @@
+#ifndef AMULE_SHUTDOWN_STATUS_H
+#define AMULE_SHUTDOWN_STATUS_H
+
+#include <wx/dialog.h>
+#include <wx/evtloop.h>
+#include <wx/sizer.h>
+#include <wx/stattext.h>
+
+// Shutdown owns this window until all core cleanup is complete. Pump only paint
+// and layout events: timers, sockets, queued callbacks and user commands must
+// not reenter core objects while they are being destroyed.
+class CShutdownStatus : public wxDialog
+{
+public:
+	CShutdownStatus()
+	: wxDialog(nullptr,
+		  wxID_ANY,
+		  _("Closing aMule"),
+		  wxDefaultPosition,
+		  wxDefaultSize,
+		  wxCAPTION | wxSYSTEM_MENU)
+	{
+		auto *sizer = new wxBoxSizer(wxVERTICAL);
+		sizer->Add(new wxStaticText(
+				   this, wxID_ANY, _("Please wait while aMule saves your data and closes.")),
+			wxSizerFlags().Border(wxALL, 15));
+		m_status = new wxStaticText(this,
+			wxID_ANY,
+			wxString(),
+			wxDefaultPosition,
+			FromDIP(wxSize(440, 45)),
+			wxST_NO_AUTORESIZE);
+		sizer->Add(m_status, wxSizerFlags().Expand().Border(wxLEFT | wxRIGHT | wxBOTTOM, 15));
+		SetSizerAndFit(sizer);
+		Centre();
+		Bind(wxEVT_CLOSE_WINDOW, [](wxCloseEvent &event) {
+			if (event.CanVeto()) {
+				event.Veto();
+			}
+		});
+		Show();
+	}
+
+	void SetStatus(const wxString &status)
+	{
+		m_status->SetLabel(status);
+		m_status->Wrap(m_status->GetSize().x);
+		Refresh();
+		// OnExit may run after the main loop has stopped (including macOS session
+		// end). A temporary loop supplies the same restricted repaint there.
+		if (auto *loop = wxEventLoopBase::GetActive()) {
+			loop->YieldFor(wxEVT_CATEGORY_UI);
+		} else {
+			wxEventLoop temporaryLoop;
+			wxEventLoopActivator active(&temporaryLoop);
+			temporaryLoop.YieldFor(wxEVT_CATEGORY_UI);
+		}
+		Update();
+	}
+
+private:
+	wxStaticText *m_status;
+};
+
+#endif

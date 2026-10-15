@@ -484,6 +484,11 @@ msgstr "Zaváděcí uzly Kad (nodes.dat)"
 
 #: src/amule.cpp
 #, c-format
+msgid "Not starting %s: it is neither next to aMule nor on PATH."
+msgstr ""
+
+#: src/amule.cpp
+#, c-format
 msgid "web server running on pid %d"
 msgstr "Webový server běží s PID %d"
 
@@ -7187,6 +7192,11 @@ msgstr "Ukládání jen %u nejnovějších vyhledávání z %u otevřených do %
 #, c-format
 msgid "Only saving the first %u of %u results for search \"%s\"."
 msgstr "Ukládání jen prvních %u z %u výsledků vyhledávání \"%s\"."
+
+#: src/SearchList.cpp
+#, fuzzy, c-format
+msgid "IO error while saving %s: %s"
+msgstr "Chyba I/O při čtení souboru %s: %s"
 
 #: src/SearchList.cpp
 msgid "WARNING: Stored search list corrupted, contains invalid header."

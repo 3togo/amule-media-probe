@@ -485,6 +485,11 @@ msgstr "Kad başlangıç düğümleri (nodes.dat)"
 
 #: src/amule.cpp
 #, c-format
+msgid "Not starting %s: it is neither next to aMule nor on PATH."
+msgstr ""
+
+#: src/amule.cpp
+#, c-format
 msgid "web server running on pid %d"
 msgstr "web sunucusu pid %d üzerinde çalışıyor"
 
@@ -7160,6 +7165,11 @@ msgstr "Sadece yakın geçmişteki %u arama, ki açık %u arama üzerinden, %s u
 #, c-format
 msgid "Only saving the first %u of %u results for search \"%s\"."
 msgstr "Sadece ilk %u sonuç, toplam %u sonuç üzerinden, \"%s\" araması için kaydediliyor."
+
+#: src/SearchList.cpp
+#, fuzzy, c-format
+msgid "IO error while saving %s: %s"
+msgstr "%s dosyası okumada IO hatası: %s"
 
 #: src/SearchList.cpp
 msgid "WARNING: Stored search list corrupted, contains invalid header."

@@ -46,6 +46,11 @@ if (BUILD_MONOLITHIC OR BUILD_REMOTEGUI)
 	add_test (NAME IconArtworkTest COMMAND IconArtworkTest)
 	set_tests_properties (IconArtworkTest PROPERTIES SKIP_RETURN_CODE 77 LABELS "gui")
 	if (UNIX AND NOT APPLE)
+		add_test (NAME IconArtworkHeadlessTest
+			COMMAND ${CMAKE_COMMAND}
+				-DICON_ARTWORK_TEST=$<TARGET_FILE:IconArtworkTest>
+				-P ${CMAKE_CURRENT_SOURCE_DIR}/IconArtworkHeadlessTest.cmake
+		)
 		add_test (NAME IconArtworkDarkTest COMMAND IconArtworkTest)
 		add_test (NAME IconArtworkHighContrastTest COMMAND IconArtworkTest)
 		set_tests_properties (IconArtworkDarkTest PROPERTIES
@@ -154,6 +159,12 @@ add_executable (ProtocolPeerIdentityTest ProtocolPeerIdentityTest.cpp)
 add_test (NAME ProtocolPeerIdentityTest COMMAND ProtocolPeerIdentityTest)
 target_include_directories (ProtocolPeerIdentityTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries (ProtocolPeerIdentityTest muleunit mulecommon)
+
+# Per-socket refill thresholds use original payload, independent of statistics resets.
+add_executable (UploadRefillTest UploadRefillTest.cpp)
+add_test (NAME UploadRefillTest COMMAND UploadRefillTest)
+target_include_directories (UploadRefillTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries (UploadRefillTest muleunit mulecommon)
 
 # The done-list cap, without live clients.
 add_executable (UploadBlockListsTest UploadBlockListsTest.cpp)
@@ -447,6 +458,7 @@ endif()
 
 add_executable (PacketTest
 	PacketTest.cpp
+	ServerUDPPacketQueueTest.cpp
 	${CMAKE_SOURCE_DIR}/src/Packet.cpp
 	${CMAKE_SOURCE_DIR}/src/MemFile.cpp
 	${CMAKE_SOURCE_DIR}/src/SafeFile.cpp
@@ -1136,6 +1148,33 @@ target_include_directories (FileDataIOTest
 )
 
 target_link_libraries (FileDataIOTest
+	muleunit
+)
+
+add_executable (PartMetWriterTest
+	PartMetWriterTest.cpp
+	${CMAKE_SOURCE_DIR}/src/PartMetWriter.cpp
+	${CMAKE_SOURCE_DIR}/src/SafeFile.cpp
+	${CMAKE_SOURCE_DIR}/src/CFile.cpp
+	${CMAKE_SOURCE_DIR}/src/MemFile.cpp
+	${CMAKE_SOURCE_DIR}/src/kademlia/utils/UInt128.cpp
+	${CMAKE_SOURCE_DIR}/src/Tag.cpp
+	${CMAKE_SOURCE_DIR}/src/libs/common/Path.cpp
+	${CMAKE_SOURCE_DIR}/src/libs/common/Format.cpp
+	${CMAKE_SOURCE_DIR}/src/libs/common/strerror_r.c
+)
+
+add_test (NAME PartMetWriterTest
+	COMMAND PartMetWriterTest
+)
+
+target_include_directories (PartMetWriterTest
+	PRIVATE ${CMAKE_BINARY_DIR}
+	PRIVATE ${CMAKE_SOURCE_DIR}/src
+	PRIVATE ${CMAKE_SOURCE_DIR}/src/include
+)
+
+target_link_libraries (PartMetWriterTest
 	muleunit
 )
 
@@ -2373,6 +2412,22 @@ if (ENABLE_INTEGRATION_TESTS AND BUILD_DAEMON AND UNIX AND NOT APPLE)
 		add_test (NAME KadDistributionECTest COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/KadDistributionECTest.py $<TARGET_FILE:amuled>)
 		add_test (NAME KadPopulatedDistributionECTest COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/KadDistributionECTest.py $<TARGET_FILE:amuled> --populated)
 		set_tests_properties (KadPopulatedDistributionECTest PROPERTIES SKIP_RETURN_CODE 77)
+		add_test (NAME AmuleApiRestartIntegrationTest
+			COMMAND ${Python3_EXECUTABLE}
+				${CMAKE_CURRENT_SOURCE_DIR}/AmuleApiRestartIntegrationTest.py $<TARGET_FILE:amuled>
+		)
+		if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+			add_test (NAME UploadRefillIntegrationTest
+				COMMAND ${Python3_EXECUTABLE} -u
+					${CMAKE_CURRENT_SOURCE_DIR}/UploadRefillIntegrationTest.py
+					$<TARGET_FILE:amuled> --seconds 3
+			)
+			add_test (NAME UploadRefillCompressedIntegrationTest
+				COMMAND ${Python3_EXECUTABLE} -u
+					${CMAKE_CURRENT_SOURCE_DIR}/UploadRefillIntegrationTest.py
+					$<TARGET_FILE:amuled> --seconds 3 --compress
+			)
+		endif()
 		add_test (NAME LogfilePathIntegrationTest
 			COMMAND ${Python3_EXECUTABLE}
 				${CMAKE_CURRENT_SOURCE_DIR}/LogfilePathIntegrationTest.py $<TARGET_FILE:amuled>
@@ -2626,3 +2681,24 @@ if (ENABLE_IP2COUNTRY)
 	target_link_libraries (MaxMindDBUpdateTest muleunit mulecommon MaxMindDB::Shared)
 	add_test (NAME MaxMindDBUpdateTest COMMAND MaxMindDBUpdateTest)
 endif()
+
+# Retry scheduling for the core-supervised API child.
+add_executable (AmuleApiRestartTest AmuleApiRestartTest.cpp)
+add_test (NAME AmuleApiRestartTest COMMAND AmuleApiRestartTest)
+target_include_directories (AmuleApiRestartTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries (AmuleApiRestartTest muleunit mulecommon)
+
+# Pipe draining and process-observer lifetime without starting the application.
+add_executable (AmuleApiProcessTest
+	AmuleApiProcessTest.cpp
+	${CMAKE_SOURCE_DIR}/src/TerminationProcessAmuleApi.cpp
+	${CMAKE_SOURCE_DIR}/src/TerminationProcess.cpp
+	${CMAKE_SOURCE_DIR}/src/LoggerConsole.cpp
+)
+add_application_test_stubs (AmuleApiProcessTest)
+target_compile_definitions (AmuleApiProcessTest PRIVATE AMULE_DAEMON wxUSE_GUI=0)
+target_include_directories (AmuleApiProcessTest PRIVATE
+	${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/src/include
+)
+target_link_libraries (AmuleApiProcessTest muleunit mulecommon wxWidgets::BASE)
+add_test (NAME AmuleApiProcessTest COMMAND AmuleApiProcessTest)

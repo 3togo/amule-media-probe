@@ -452,6 +452,11 @@ msgstr ""
 
 #: src/amule.cpp
 #, c-format
+msgid "Not starting %s: it is neither next to aMule nor on PATH."
+msgstr ""
+
+#: src/amule.cpp
+#, c-format
 msgid "web server running on pid %d"
 msgstr ""
 
@@ -6988,6 +6993,11 @@ msgstr ""
 #: src/SearchList.cpp
 #, c-format
 msgid "Only saving the first %u of %u results for search \"%s\"."
+msgstr ""
+
+#: src/SearchList.cpp
+#, c-format
+msgid "IO error while saving %s: %s"
 msgstr ""
 
 #: src/SearchList.cpp

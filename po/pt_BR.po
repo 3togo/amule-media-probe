@@ -504,6 +504,11 @@ msgstr "Nós de inicialização de Kad"
 
 #: src/amule.cpp
 #, c-format
+msgid "Not starting %s: it is neither next to aMule nor on PATH."
+msgstr ""
+
+#: src/amule.cpp
+#, c-format
 msgid "web server running on pid %d"
 msgstr "web server rodando no pid %d"
 
@@ -7175,6 +7180,11 @@ msgstr "Salvando apenas a %u mais recente de %u buscas abertas para %s."
 #, c-format
 msgid "Only saving the first %u of %u results for search \"%s\"."
 msgstr "Salvando apenas os primeiros %u de %u resultados para a busca \"%s\"."
+
+#: src/SearchList.cpp
+#, fuzzy, c-format
+msgid "IO error while saving %s: %s"
+msgstr "Erro de I/O ao ler arquivo %s: %s"
 
 #: src/SearchList.cpp
 msgid "WARNING: Stored search list corrupted, contains invalid header."

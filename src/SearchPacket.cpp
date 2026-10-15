@@ -23,7 +23,7 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA
 //
 
-#include "SearchList.h"
+#include "SearchPacket.h"
 #include "MemFile.h"
 #include "Logger.h"
 #include "kademlia/kademlia/SearchManager.h"
@@ -222,8 +222,8 @@ protected:
 	bool &m_using64bit;
 };
 
-CSearchList::CMemFilePtr CSearchList::CreateSearchData(
-	CSearchParams &params, SearchType type, bool supports64bit, bool &packetUsing64bit)
+CSmartPtr<CMemFile> CreateSearchData(
+	CSearchList::CSearchParams &params, SearchType type, bool supports64bit, bool &packetUsing64bit)
 {
 	// Count the number of used parameters
 	unsigned int parametercount = 0;
@@ -252,7 +252,7 @@ CSearchList::CMemFilePtr CSearchList::CreateSearchData(
 	}
 
 	// Must write parametercount - 1 parameter headers
-	CMemFilePtr data(new CMemFile(100));
+	CSmartPtr<CMemFile> data(new CMemFile(100));
 
 	_astrParserErrors.Empty();
 	_SearchExpr.m_aExpr.Empty();
@@ -272,13 +272,13 @@ CSearchList::CMemFilePtr CSearchList::CreateSearchData(
 			AddLogLineNS(CFormat(_("Error %u: %s\n")) % i % _astrParserErrors[i]);
 		}
 
-		return CMemFilePtr(nullptr);
+		return CSmartPtr<CMemFile>(nullptr);
 	}
 
 	if (iParseResult != 0) {
 		_astrParserErrors.Add(CFormat("Undefined error %i on search expression") % iParseResult);
 
-		return CMemFilePtr(nullptr);
+		return CSmartPtr<CMemFile>(nullptr);
 	}
 
 	if (type == KadSearch && s_strCurKadKeyword != params.strKeyword) {
@@ -360,7 +360,8 @@ CSearchList::CMemFilePtr CSearchList::CreateSearchData(
 				FT_MEDIA_BITRATE, ED2K_SEARCH_OP_GREATER_EQUAL, params.minBitrateKbps);
 		}
 
-// #warning TODO - I keep this here, ready if we ever allow such searches...
+// Before enabling these filters, follow the bitrate term above: numeric FT_* IDs
+// on both networks and GREATER_EQUAL for inclusive minimums (not legacy string tags).
 #if 0
 		if (complete > 0){
 			if (++iParameterCount < parametercount) {
@@ -446,7 +447,7 @@ CSearchList::CMemFilePtr CSearchList::CreateSearchData(
 			}
 		}
 
-// #warning TODO - same as above...
+// Keep these AND headers in sync with the filters and parameter count when enabling them.
 #if 0
 		if (complete > 0){
 			if (++iParameterCount < parametercount) {
@@ -527,7 +528,8 @@ CSearchList::CMemFilePtr CSearchList::CreateSearchData(
 				FT_MEDIA_BITRATE, ED2K_SEARCH_OP_GREATER_EQUAL, params.minBitrateKbps);
 		}
 
-// #warning TODO - third and last warning of the same series.
+// As above, follow the bitrate term: numeric FT_* IDs on both networks and
+// GREATER_EQUAL for inclusive minimums when enabling these filters.
 #if 0
 		if (complete > 0) {
 			target.WriteMetaDataSearchParam(FT_COMPLETE_SOURCES, ED2K_SEARCH_OP_GREATER, pParams->uComplete);

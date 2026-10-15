@@ -3,7 +3,7 @@
 // Licensed under the GNU General Public License, version 2 or later.
 
 #include <muleunit/test.h>
-#include "SearchList.h"
+#include "SearchPacket.h"
 #include "MemFile.h"
 #include <initializer_list>
 #include <limits>
@@ -25,7 +25,7 @@ public:
 		bool expected64bit = false)
 	{
 		bool using64bit = true;
-		auto packet = CSearchList::CreateSearchData(params, type, supports64bit, using64bit);
+		auto packet = CreateSearchData(params, type, supports64bit, using64bit);
 		ASSERT_TRUE(packet.get() != nullptr);
 		ASSERT_EQUALS(expected64bit, using64bit);
 		return Bytes(packet->GetRawBuffer(), packet->GetRawBuffer() + packet->GetLength());
@@ -34,7 +34,7 @@ public:
 	static bool Rejected(CSearchList::CSearchParams params, SearchType type)
 	{
 		bool using64bit = false;
-		return !CSearchList::CreateSearchData(params, type, true, using64bit);
+		return !CreateSearchData(params, type, true, using64bit);
 	}
 };
 
@@ -293,10 +293,13 @@ TEST(SearchPacket, RejectedQueryDoesNotLeakParserStateIntoNextSearch)
 	params.strKeyword = "song";
 	params.minBitrateKbps = 320;
 	ASSERT_TRUE(CSearchPacketTestFixture::Rejected(params, KadSearch));
+	ASSERT_TRUE(!_astrParserErrors.IsEmpty());
 	params.searchString = "live";
 	params.minBitrateKbps = 0;
 	ASSERT_TRUE(CSearchPacketTestFixture::Packet(params, GlobalSearch) == Text("live"));
+	ASSERT_TRUE(_astrParserErrors.IsEmpty());
 	params.minBitrateKbps = 256;
 	params.strKeyword = "live";
 	ASSERT_TRUE(CSearchPacketTestFixture::Packet(params, KadSearch) == Bitrate(256));
+	ASSERT_TRUE(_astrParserErrors.IsEmpty());
 }

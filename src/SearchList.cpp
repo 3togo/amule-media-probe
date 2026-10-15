@@ -24,6 +24,7 @@
 //
 
 #include "SearchList.h" // Interface declarations.
+#include "SearchPacket.h"
 #include "SearchStartBookkeeping.h"
 
 #include "BrowseManager.h"
@@ -60,9 +61,6 @@
 #include "kademlia/kademlia/Kademlia.h"
 #include "kademlia/kademlia/Search.h"
 #include "kademlia/kademlia/Defines.h" // Needed for SEARCHKEYWORD_LIFETIME (Kad ramp)
-
-// The parser and packet writer share errors with StartNewSearch.
-extern wxArrayString _astrParserErrors;
 
 ///////////////////////////////////////////////////////////
 // CSearchList

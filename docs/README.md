@@ -327,3 +327,16 @@ developers have no control over what other peers transfer through this
 medium and cannot be held liable for non-personal copyright
 infringement or other illegal activity by third parties. Share
 responsibly.
+
+### Server-list download fallback
+
+Downloads from the configured `Ed2kServersUrl` in the `[eMule]` section of
+`amule.conf` retry once using `Ed2kServersFallbackUrl` if the primary request fails
+or the downloaded list is invalid. The default backup is
+`https://emuling.gitlab.io/server.met`. Set `Ed2kServersFallbackUrl=` to disable
+this retry, or set it to another HTTP/HTTPS server-list URL.
+
+A successful primary download does not contact the backup. Cancelling a download
+also cancels failover. An explicitly entered URL that differs from the configured
+primary is used on its own. The list of automatic update sources in `addresses.dat`
+continues to be processed independently.

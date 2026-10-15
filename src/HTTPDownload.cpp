@@ -490,7 +490,7 @@ void CHTTPDownloadThread::OnStateEvent(wxWebRequestEvent &evt)
 
 	case wxWebRequest::State_Cancelled: {
 		AddDebugLogLineN(logHTTP, CFormat("HTTP download cancelled: %s") % m_url);
-		FinishAndDestroy(HTTP_Error);
+		FinishAndDestroy(HTTP_Cancelled);
 		break;
 	}
 
@@ -563,7 +563,7 @@ void CHTTPDownloadThread::Stop()
 	} else if (!m_finishPosted) {
 		// Request never got off the ground (e.g. invalid URL, or Stop()
 		// called before Start() had a chance). Finish synchronously.
-		FinishAndDestroy(HTTP_Error);
+		FinishAndDestroy(HTTP_Cancelled);
 	}
 }
 

@@ -20,6 +20,7 @@ OFFLINE = {
     'Reconnect': 0,
     'Serverlist': 0,
     'Ed2kServersUrl': '',
+    'Ed2kServersFallbackUrl': '',
     'KadNodesUrl': '',
     'AddServerListFromServer': 0,
     'AddServerListFromClient': 0,

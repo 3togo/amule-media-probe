@@ -804,14 +804,33 @@ void CServerList::RemoveDeadServers()
 
 void CServerList::UpdateServerMetFromURL(const wxString &strURL, bool showDialog)
 {
-	if (strURL.Find("://") == -1) {
+	if (m_serverMetDownloading) {
+		AddLogLineN(_("A server list download is already in progress."));
+		return;
+	}
+	const wxURI uri(strURL);
+	const wxString scheme = uri.GetScheme().Lower();
+	if (!uri.HasServer() || (scheme != "http" && scheme != "https")) {
 		AddLogLineC(_("Invalid URL"));
 		return;
 	}
-	m_URLUpdate = strURL;
-	wxString strTempFilename(thePrefs::GetConfigDir() + "server.met.download");
-	CHTTPDownloadThread *downloader = new CHTTPDownloadThread(strURL,
-		strTempFilename,
+	// Only the configured primary uses the backup. An explicitly entered URL
+	// must not silently fetch a different list. An empty backup disables failover.
+	m_serverMetFallback =
+		strURL == thePrefs::GetEd2kServersUrl() ? thePrefs::GetEd2kServersFallbackUrl() : wxString();
+	if (m_serverMetFallback == strURL) {
+		m_serverMetFallback.clear();
+	}
+	StartServerMetDownload(strURL, showDialog);
+}
+
+void CServerList::StartServerMetDownload(const wxString &url, bool showDialog)
+{
+	m_serverMetURL = url;
+	m_serverMetDownloading = true;
+	m_serverMetShowDialog = showDialog;
+	auto *downloader = new CHTTPDownloadThread(url,
+		thePrefs::GetConfigDir() + "server.met.download",
 		thePrefs::GetConfigDir() + "server.met",
 		HTTP_ServerMet,
 		showDialog,
@@ -822,24 +841,35 @@ void CServerList::UpdateServerMetFromURL(const wxString &strURL, bool showDialog
 
 bool CServerList::DownloadFinished(uint32 result)
 {
-	bool ret = false;
-	if (result == HTTP_Success) {
-		const CPath tempFilename = CPath(thePrefs::GetConfigDir() + "server.met.download");
-
-		LoadServerMet(tempFilename);
-		SaveServerMet();
-
-		CPath::RemoveFile(tempFilename);
-		AddLogLineN(CFormat(_("Finished downloading the server list from %s")) % m_URLUpdate);
-		ret = true;
-		// cppcheck-suppress duplicateBranch
-	} else if (result == HTTP_Skipped) {
-		AddLogLineN(CFormat(_("Skipped download of %s, because requested file is not newer.")) %
-			    "server.met");
-	} else {
-		AddLogLineC(CFormat(_("Failed to download %s from %s")) % "server.met" % m_URLUpdate);
+	m_serverMetDownloading = false;
+	if (theApp->IsOnShutDown()) {
+		return false;
 	}
-	return ret;
+	bool loaded = false;
+	if (result == HTTP_Success) {
+		const CPath temporary(thePrefs::GetConfigDir() + "server.met.download");
+		loaded = LoadServerMet(temporary);
+		if (loaded) {
+			SaveServerMet();
+			AddLogLineN(
+				CFormat(_("Finished downloading the server list from %s")) % m_serverMetURL);
+		}
+		CPath::RemoveFile(temporary);
+	}
+	if (loaded || result == HTTP_Skipped || result == HTTP_Cancelled) {
+		m_serverMetFallback.clear();
+		return loaded;
+	}
+	AddLogLineC(CFormat(_("Failed to download %s from %s")) % "server.met" % m_serverMetURL);
+	const wxString fallback = m_serverMetFallback;
+	m_serverMetFallback.clear(); // Exactly one retry, including a malformed backup.
+	const wxURI uri(fallback);
+	const wxString scheme = uri.GetScheme().Lower();
+	if (uri.HasServer() && (scheme == "http" || scheme == "https")) {
+		AddLogLineN(CFormat(_("Trying the backup server list from %s")) % fallback);
+		StartServerMetDownload(fallback, m_serverMetShowDialog);
+	}
+	return false;
 }
 
 void CServerList::AutoUpdate()

@@ -267,6 +267,7 @@ uint32 CPreferences::s_dwKadUDPKey;
 uint8 CPreferences::s_byCryptTCPPaddingLength;
 
 wxString CPreferences::s_Ed2kURL;
+wxString CPreferences::s_Ed2kFallbackURL;
 wxString CPreferences::s_KadURL;
 bool CPreferences::s_GeoIPEnabled;
 bool CPreferences::s_GeoIPSupported = true;
@@ -1416,6 +1417,8 @@ void CPreferences::BuildItemList(const wxString &appdir)
 		new Cfg_Str("/eMule/KadNodesUrl", s_KadURL, "https://upd.emule-security.org/nodes.dat"));
 	s_MiscList.push_back(
 		new Cfg_Str("/eMule/Ed2kServersUrl", s_Ed2kURL, "https://upd.emule-security.org/server.met"));
+	s_MiscList.push_back(new Cfg_Str(
+		"/eMule/Ed2kServersFallbackUrl", s_Ed2kFallbackURL, "https://emuling.gitlab.io/server.met"));
 	s_MiscList.push_back(MkCfg_Int("/eMule/ShowRatesOnTitle", s_showRatesOnTitle, 0));
 
 	// IP2Country / GeoIP database -- three sources, all delivering the same MMDB binary

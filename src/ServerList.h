@@ -97,6 +97,7 @@ public:
 private:
 	virtual void ObserverAdded(ObserverType *);
 	void AutoUpdate();
+	void StartServerMetDownload(const wxString &url, bool showDialog);
 	CServer *GetNextStatServer();
 
 	wxString m_staticServersConfig;
@@ -110,6 +111,10 @@ private:
 	CInternalList::const_iterator m_statserverpos;
 
 	wxString m_URLUpdate;
+	wxString m_serverMetURL;
+	wxString m_serverMetFallback;
+	bool m_serverMetDownloading = false;
+	bool m_serverMetShowDialog = false;
 	bool m_initialized;
 };
 

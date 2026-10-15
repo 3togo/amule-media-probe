@@ -19,12 +19,7 @@ public:
 
 	bool Fits(uint64_t neededBytes) const { return neededBytes < m_available; }
 
-	void Charge(uint64_t neededBytes)
-	{
-		if (Fits(neededBytes)) {
-			m_available -= neededBytes;
-		}
-	}
+	void Charge(uint64_t neededBytes) { m_available -= neededBytes; }
 
 private:
 	uint64_t m_available;

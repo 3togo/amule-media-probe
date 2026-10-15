@@ -61,9 +61,9 @@ ECPassword={hashlib.md5(b'regression').hexdigest()}
 
 
 @contextmanager
-def daemon(binary, root, ports):
+def daemon(binary, root, ports, locale='C.UTF-8'):
     env = dict(os.environ, HOME=str(root), XDG_CONFIG_HOME=str(root / 'xdg'),
-               LC_ALL='C.UTF-8', LANG='C.UTF-8')
+               LC_ALL=locale, LANG=locale)
     env.pop('LD_PRELOAD', None)
     snapshot = log_snapshot(root / 'logfile')
     with (root / 'console.log').open('w') as console:
@@ -88,9 +88,11 @@ def daemon(binary, root, ports):
                 if proc.poll() is None:
                     proc.kill()
                     proc.wait()
-    log = new_log_text(root / 'logfile', snapshot)
+    log = (new_log_text(root / 'logfile', snapshot)
+           + (root / 'console.log').read_text(errors='replace'))
     assert "couldn't be created" not in log, log
     assert 'Error accessing directory' not in log, log
+    assert 'Could not create the ' not in log, log
 
 
 def check_paths(root, expected):
@@ -98,6 +100,13 @@ def check_paths(root, expected):
     for key, path in expected.items():
         assert config[key] == to_univ(path), (key, config[key], to_univ(path))
         assert os.path.isdir(path), repr(path)
+
+
+def save_and_check_paths(ec, root, expected):
+    # Force an actual save after loading. Shutdown alone need not save prefs,
+    # and a first-run save cannot prove that the reloaded value round-trips.
+    assert ec.call(C['EC_OP_SET_PREFERENCES'])[0] == C['EC_OP_NOOP']
+    check_paths(root, expected)
 
 
 def get_directories(ec):
@@ -124,6 +133,21 @@ def run(binary):
                     assert dirs[C['EC_TAG_DIRECTORIES_TEMP']][0] == os.fsencode(expected['TempDir']) + b'\0'
                     assert dirs[C['EC_TAG_DIRECTORIES_INCOMING']][0] == os.fsencode(expected['IncomingDir']) + b'\0'
                 check_paths(root, expected)
+            # Missing keys in an existing profile must work without the new-user
+            # constructor save; remove directories too so startup must use them.
+            config_path = root / 'amule.conf'
+            config = config_path.read_text(encoding='utf-8')
+            config_path.write_text('\n'.join(
+                line for line in config.splitlines()
+                if not line.startswith(('TempDir=', 'IncomingDir=', 'OSDirectory='))) + '\n',
+                encoding='utf-8')
+            for path in expected.values():
+                path.rmdir()
+            with daemon(binary, root, ports) as ec:
+                assert 'TempDir' not in read_config(root)
+                assert 'IncomingDir' not in read_config(root)
+                save_and_check_paths(ec, root, expected)
+                assert read_config(root)['OSDirectory'] == to_univ(str(root) + '/')
 
         root = base / 'empty д'
         ports = write_config(root, {'TempDir': '', 'IncomingDir': '', 'OSDirectory': ''})
@@ -147,8 +171,8 @@ def run(binary):
             assert read_config(root)['TempDir'] == ''
             assert read_config(root)['IncomingDir'] == ''
             assert read_config(root)['OSDirectory'] == ''
-            assert ec.call(C['EC_OP_SET_PREFERENCES'])[0] == C['EC_OP_NOOP']
-            check_paths(root, expected)
+            save_and_check_paths(ec, root, expected)
+            assert read_config(root)['OSDirectory'] == ''
         check_paths(root, expected)
 
         root = base / 'ec-saved'
@@ -163,9 +187,10 @@ def run(binary):
             config = read_config(root)
             for key, path in expected.items():
                 assert config[key] == to_univ(path), (key, config[key])
-        for _ in range(2):
-            with daemon(binary, root, ports):
+        for locale in ('C.UTF-8', 'C'):
+            with daemon(binary, root, ports, locale) as ec:
                 check_paths(root, expected)
+                save_and_check_paths(ec, root, expected)
             check_paths(root, expected)
 
         root = base / 'raw-bytes'
@@ -175,10 +200,13 @@ def run(binary):
         # An existing plain-text interpretation must never override saved bytes.
         for path in expected.values():
             Path(path.decode('latin-1')).mkdir()
-        for _ in range(2):
-            with daemon(binary, root, ports):
+        for locale in ('C.UTF-8', 'C'):
+            with daemon(binary, root, ports, locale) as ec:
                 check_paths(root, expected)
+                save_and_check_paths(ec, root, expected)
             check_paths(root, expected)
+            for path in expected.values():
+                os.rmdir(path)
     print('Path defaults, empty recovery, EC save/reload and raw filename bytes passed')
 
 

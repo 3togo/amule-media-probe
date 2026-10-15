@@ -303,6 +303,8 @@ jobs:
         run: |
           xvfb-run -a ctest ${{ env.ctest_flags }} --timeout 10 -E '${{ env.ctest_fast_exclude }}' &&
           xvfb-run -a ctest ${{ env.ctest_flags }} --timeout 60 -R '${{ env.ctest_slow_unit_tests }}'
+      - name: run OFFERFILES v1 policy tests
+        run: ctest ${{ env.ctest_flags }} --timeout 60 --no-tests=error -R '^OfferFilesPolicyTest$'
       - name: run integration tests
         run: ctest ${{ env.ctest_flags }} --timeout 300 --no-tests=error -R '^(AmuleApiRestartIntegration|AllSearch(Integration|ClientCapability)|ChatCaptchaIntegration|PathDefaultsIntegration|LogfilePathIntegration|KadIndexLifecycleEC|ShareWatcherMoveIntegration|UploadRefill(Compressed)?Integration|KnownHistoryIntegration|KadDistributionEC|KadPopulatedDistributionEC|Kad(Populated)?LookupEC)Test$'
 

@@ -26,6 +26,7 @@
 #include <wx/wx.h>
 
 #include "ServerList.h" // Interface declarations.
+#include "ServerListSources.h"
 
 #include <protocol/Protocols.h>
 #include <protocol/ed2k/Constants.h>
@@ -83,6 +84,7 @@ bool CServerList::Init()
 
 void CServerList::StartAutoUpdate()
 {
+	m_autoUpdateURLs = ServerListSources::Read(thePrefs::GetConfigDir() + "addresses.dat");
 	current_url_index = 0;
 	AutoUpdate();
 }
@@ -845,45 +847,27 @@ bool CServerList::DownloadFinished(uint32 result)
 void CServerList::AutoUpdate()
 {
 
-	uint8 url_count = theApp->glob_prefs->addresses_list.GetCount();
+	const size_t url_count = m_autoUpdateURLs.GetCount();
 
 	if (!url_count) {
 		AddLogLineC(_("No server list address entry in 'addresses.dat' found. Please paste a valid "
 			      "server list address into this file in order to auto-update your server list"));
 		return;
 	}
-	// Do current URL. Callback function will take care of the others.
-	while (current_url_index < url_count) {
-		wxString URI = theApp->glob_prefs->addresses_list[current_url_index];
-		// wxURL only registers protocol handlers for http and ftp, so any https URL would
-		// come back as wxURL_NOPROTO and be rejected -- while the download itself goes
-		// through wxWebRequest, which handles https fine (#714). Validate with wxURI plus
-		// an explicit scheme check instead.
-		wxURI uri(URI);
-		const wxString scheme = uri.HasScheme() ? uri.GetScheme().Lower() : wxString();
-		if (uri.HasServer() && (scheme == "http" || scheme == "https")) {
-			m_URLUpdate = URI;
-			wxString strTempFilename = thePrefs::GetConfigDir() + "server_auto.met";
-			AddLogLineC(CFormat(_("Start downloading server list from %s")) % URI);
-			CHTTPDownloadThread *downloader = new CHTTPDownloadThread(URI,
-				strTempFilename,
-				thePrefs::GetConfigDir() + "server.met",
-				HTTP_ServerMetAuto,
-				false,
-				false);
-			downloader->Create();
-			downloader->Run();
-
-			return;
-		} else {
-			AddLogLineC(
-				CFormat(_(
-					"WARNING: invalid URL specified for auto-updating of servers: %s")) %
-				URI);
-		}
-		current_url_index++;
+	// The snapshot stays stable until this sequence finishes, even if the file is edited.
+	if (current_url_index < url_count) {
+		const wxString &url = m_autoUpdateURLs[current_url_index];
+		m_URLUpdate = url;
+		AddLogLineC(CFormat(_("Start downloading server list from %s")) % url);
+		auto *downloader = new CHTTPDownloadThread(url,
+			thePrefs::GetConfigDir() + "server_auto.met",
+			thePrefs::GetConfigDir() + "server.met",
+			HTTP_ServerMetAuto,
+			false,
+			false);
+		downloader->Create();
+		downloader->Run();
 	}
-	AddLogLineC(_("No valid server.met auto-download url on addresses.dat"));
 }
 
 void CServerList::AutoDownloadFinished(uint32 result)
@@ -901,7 +885,7 @@ void CServerList::AutoDownloadFinished(uint32 result)
 
 	++current_url_index;
 
-	if (current_url_index < theApp->glob_prefs->addresses_list.GetCount()) {
+	if (current_url_index < m_autoUpdateURLs.GetCount()) {
 		AutoUpdate();
 	}
 }

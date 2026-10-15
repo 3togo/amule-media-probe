@@ -1,25 +1,11 @@
-server: prepare shared server-list sources in addresses.dat
+server: share ordered addresses.dat sources for server-list updates
 
-Related issue: https://github.com/amule-org/amule/issues/1354
-Existing PR: None; local proposal only
-Local branch: pr/1354-server-sources-draft
-Source branch: upstream/master
-Source commit: d2c9938aa88b504cfa84ab711e58fa4349d1a7e6
+Part of #1354. Local prerequisite for revising #1923; do not publish yet.
 
-Status
-New prerequisite proposal; implementation remains to be written.
+Read addresses.dat when an update begins instead of caching it at application startup. Preserve the file, accept HTTP and HTTPS, ignore comments and blank lines, skip invalid URLs, and retain the first occurrence of each URL. Use an independent snapshot for the startup auto-update sequence and a size_t cursor so lists are not truncated to 255 entries. The shared reader is available for manual download fallback in the next change.
 
-Proposed scope
-Use addresses.dat as the shared ordered list of alternate server.met sources. Document existing startup behavior and the configuration paths used by local and remote clients. Preserve user-maintained entries; do not replace existing files. Identify the operator, list-generation process and maintenance policy of any proposed shipped source. Add a default only after project agreement; no source is approved by this draft.
+No new default source is installed. The proposed emuling.gitlab.io source came from #1354; its operator and list-generation policy have not been established here. A shipped backup requires project agreement.
 
-Dependencies
-No dependency. Keep download retry behavior in the follow-up PR.
+Configuration: local users may use the existing Servers preferences editor; daemon administrators edit addresses.dat in the daemon configuration directory. Remote clients do not gain a new setting or edit the daemon file through this change. Existing primary URL and startup update enablement remain unchanged.
 
-Planned validation
-Check fresh and existing configurations, empty lists, source ordering, preservation of user entries and local/remote configuration behavior. Record source provenance separately from availability checks.
-
-Validation status
-No build or runtime checks were run for this drafting task. Previous PR validation must not be treated as validation of future revisions.
-
-Publication
-Local draft only. Do not push, submit, update or comment on GitHub without a further user instruction. Remove this planning file before publishing an implementation PR.
+Validation: see the local validation record after checks finish.

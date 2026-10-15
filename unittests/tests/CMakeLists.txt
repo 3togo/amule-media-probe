@@ -578,6 +578,12 @@ target_link_libraries (CTagTest
 	muleunit
 )
 
+# Shared ordered server-list sources, including live edits and large lists.
+add_executable (ServerListSourcesTest ServerListSourcesTest.cpp)
+target_include_directories (ServerListSourcesTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries (ServerListSourcesTest muleunit mulecommon)
+add_test (NAME ServerListSourcesTest COMMAND ServerListSourcesTest)
+
 # server.met reading, including files older aMule versions wrote with one tag too many declared
 # for a server without a version. Same TU set as CTagTest.
 add_executable (ServerMetTest

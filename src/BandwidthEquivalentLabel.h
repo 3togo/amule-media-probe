@@ -12,12 +12,18 @@ class BandwidthEquivalentLabel : public wxStaticText
 {
 public:
 	BandwidthEquivalentLabel(wxWindow *parent, wxWindowID id, wxSpinCtrl *limit)
-	: wxStaticText(
-		  parent, id, _("KiB/s (976.56 MiB/s)"), wxDefaultPosition, wxDefaultSize, wxST_NO_AUTORESIZE)
+	: wxStaticText(parent,
+		  id,
+		  wxString::Format(_("KiB/s (%.2f MiB/s)"), limit->GetMax() / 1024.0),
+		  wxDefaultPosition,
+		  wxDefaultSize,
+		  wxST_NO_AUTORESIZE)
 	, m_limit(limit)
 	{
-		// Reserve the widest supported value so editing does not move the fields.
-		SetMinSize(GetBestSize());
+		// Reserve both the largest rate and the translated unlimited label.
+		wxSize minimum = GetBestSize();
+		minimum.IncTo(GetTextExtent(_("KiB/s (unlimited)")));
+		SetMinSize(minimum);
 		Sync();
 		limit->Bind(wxEVT_TEXT, [this](wxCommandEvent &event) {
 			Sync();

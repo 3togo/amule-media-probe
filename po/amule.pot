@@ -9723,14 +9723,10 @@ msgid "Kad could not save an index. The previous copy of that file was preserved
 msgstr ""
 
 #: src/BandwidthEquivalentLabel.h
-msgid "KiB/s (976.56 MiB/s)"
+#, c-format
+msgid "KiB/s (%.2f MiB/s)"
 msgstr ""
 
 #: src/BandwidthEquivalentLabel.h
 msgid "KiB/s (unlimited)"
-msgstr ""
-
-#: src/BandwidthEquivalentLabel.h
-#, c-format
-msgid "KiB/s (%.2f MiB/s)"
 msgstr ""

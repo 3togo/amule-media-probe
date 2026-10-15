@@ -6453,6 +6453,10 @@ msgstr ""
 msgid "Connection"
 msgstr ""
 
+#: src/PrefsUnifiedDlg.cpp
+msgid "Proxy"
+msgstr ""
+
 #: src/PrefsUnifiedDlg.cpp src/Statistics.cpp
 msgid "Servers"
 msgstr ""
@@ -6462,19 +6466,15 @@ msgid "Directories"
 msgstr ""
 
 #: src/PrefsUnifiedDlg.cpp
-msgid "Security"
-msgstr ""
-
-#: src/PrefsUnifiedDlg.cpp
-msgid "IP2Country"
-msgstr ""
-
-#: src/PrefsUnifiedDlg.cpp
-msgid "Proxy"
+msgid "Events"
 msgstr ""
 
 #: src/PrefsUnifiedDlg.cpp
 msgid "Filters"
+msgstr ""
+
+#: src/PrefsUnifiedDlg.cpp
+msgid "Security"
 msgstr ""
 
 #: src/PrefsUnifiedDlg.cpp
@@ -6486,11 +6486,11 @@ msgid "Online Signature"
 msgstr ""
 
 #: src/PrefsUnifiedDlg.cpp
-msgid "Advanced"
+msgid "IP2Country"
 msgstr ""
 
 #: src/PrefsUnifiedDlg.cpp
-msgid "Events"
+msgid "Advanced"
 msgstr ""
 
 #: src/PrefsUnifiedDlg.cpp

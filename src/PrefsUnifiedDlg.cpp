@@ -256,6 +256,7 @@ struct PrefsPage
 PrefsPage pages[] = { { wxTRANSLATE("General"), PreferencesGeneralTab, 13, "prefs_general" },
 	{ wxTRANSLATE("Interface"), PreferencesGuiTweaksTab, 19, "prefs_interface" },
 	{ wxTRANSLATE("Connection"), PreferencesConnectionTab, 14, "prefs_connection" },
+	{ wxTRANSLATE("Proxy"), PreferencesProxyTab, 24, "prefs_proxy" },
 	{ wxTRANSLATE("Servers"), PreferencesServerTab, 15, "prefs_servers" },
 	{ wxTRANSLATE("Directories"), PreferencesDirectoriesTab, 17, "prefs_directories" },
 #ifdef CLIENT_GUI
@@ -265,18 +266,17 @@ PrefsPage pages[] = { { wxTRANSLATE("General"), PreferencesGeneralTab, 13, "pref
 	{ wxTRANSLATE("Path Mappings"), PreferencesPathMappingTab, 17, "prefs_pathmapping" },
 #endif
 	{ wxTRANSLATE("Files"), PreferencesFilesTab, 16, "prefs_files" },
+	{ wxTRANSLATE("Events"), PreferencesEventsTab, 5, "prefs_events" },
+	{ wxTRANSLATE("Statistics"), PreferencesStatisticsTab, 10, "prefs_statistics" },
+	{ wxTRANSLATE("Filters"), PreferencesFilteringTab, 23, "prefs_filters" },
 	{ wxTRANSLATE("Security"), PreferencesSecurityTab, 22, "prefs_security" },
+	{ wxTRANSLATE("Remote Controls"), PreferencesRemoteControlsTab, 11, "prefs_remote" },
+	{ wxTRANSLATE("Online Signature"), PreferencesOnlineSigTab, 21, "prefs_onlinesig" },
 #ifdef GEOIP_GUI
 	// Hidden when ENABLE_IP2COUNTRY is off: builds without libmaxminddb cannot use it.
 	{ wxTRANSLATE("IP2Country"), PreferencesIP2CountryTab, 13, "prefs_ip2country" },
 #endif
-	{ wxTRANSLATE("Statistics"), PreferencesStatisticsTab, 10, "prefs_statistics" },
-	{ wxTRANSLATE("Proxy"), PreferencesProxyTab, 24, "prefs_proxy" },
-	{ wxTRANSLATE("Filters"), PreferencesFilteringTab, 23, "prefs_filters" },
-	{ wxTRANSLATE("Remote Controls"), PreferencesRemoteControlsTab, 11, "prefs_remote" },
-	{ wxTRANSLATE("Online Signature"), PreferencesOnlineSigTab, 21, "prefs_onlinesig" },
-	{ wxTRANSLATE("Advanced"), PreferencesaMuleTweaksTab, 12, "prefs_advanced" },
-	{ wxTRANSLATE("Events"), PreferencesEventsTab, 5, "prefs_events" }
+	{ wxTRANSLATE("Advanced"), PreferencesaMuleTweaksTab, 12, "prefs_advanced" }
 #ifdef __DEBUG__
 	,
 	{ wxTRANSLATE("Debugging"), PreferencesDebug, 25, "prefs_debug" }

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Copyright (c) 2026 aMule Team
 # SPDX-License-Identifier: GPL-2.0-or-later
-"""Malformed six-byte headers must close the peer, not crash the daemon."""
+"""Reject malformed headers while accepting valid empty packets after HELLO."""
 from pathlib import Path
 import socket
 import struct
@@ -11,6 +11,22 @@ import tempfile
 from AllSearchIntegrationTest import free_ports, stop_daemon
 from KnownHistoryIntegrationTest import start
 from ServerTrustIntegrationTest import configure
+
+
+def receive_exact(peer, size):
+    result = b''
+    while len(result) < size:
+        chunk = peer.recv(size - len(result))
+        assert chunk, 'peer closed while receiving a packet'
+        result += chunk
+    return result
+
+
+def expect_hello_answer(peer):
+    protocol, length, opcode = struct.unpack('<BIB', receive_exact(peer, 6))
+    assert (protocol, opcode) == (0xe3, 0x4c), 'expected OP_HELLOANSWER'
+    assert 1 <= length <= 65536, f'unexpected HELLOANSWER length: {length}'
+    receive_exact(peer, length - 1)
 
 
 def run(binary):
@@ -32,9 +48,21 @@ def run(binary):
                     except ConnectionResetError:
                         pass
                 assert proc.poll() is None, f'header {length:#x} killed the daemon'
-            # A fresh connection proves the listener still works after all three failures.
-            with socket.create_connection(('127.0.0.1', ports[1]), timeout=10):
-                pass
+            with socket.create_connection(('127.0.0.1', ports[1]), timeout=10) as peer:
+                peer.settimeout(10)
+                # HELLO: hash size, hash, high ID, TCP port, no tags, no server.
+                hello = (b'\x10' + bytes.fromhex('0123456789abcdef0123456789abcdef') +
+                         struct.pack('<IHI', 0x0100007f, peer.getsockname()[1], 0) + bytes(6))
+                frame = struct.pack('<BIB', 0xe3, len(hello) + 1, 0x01) + hello
+                peer.sendall(frame)
+                expect_hello_answer(peer)
+                # Length 1 contains only an unused eMule opcode, with no payload.
+                peer.sendall(struct.pack('<BIB', 0xc5, 1, 0xff))
+                # A subsequent HELLO answer proves the empty packet was processed
+                # without closing the connection (rather than merely timing out).
+                peer.sendall(frame)
+                expect_hello_answer(peer)
+                assert proc.poll() is None, 'valid empty packet killed the daemon'
         finally:
             ec.sock.close()
             stop_daemon(proc)

@@ -35,7 +35,7 @@
 #include "ArchSpecific.h" // Needed for ENDIAN_*
 #include <common/MuleDebug.h>
 #include <algorithm>
-#include <limits>
+#include <memory>
 
 namespace
 {
@@ -156,6 +156,7 @@ CPacket::CPacket(int8 in_opcode, uint64 in_size, uint8 protocol, bool bFromPF)
 // only used for splitted packets!
 CPacket::CPacket(uint8_t *pPacketPart, uint64 nSize, bool bLast, bool bFromPF)
 {
+	std::unique_ptr<uint8_t[]> ownedPacketPart(pPacketPart);
 	MULE_VALIDATE_PARAMS(nSize >= sizeof(Header_Struct), "Split packet is shorter than its header.");
 	size = CheckedPayloadSize(nSize - sizeof(Header_Struct));
 	opcode = 0;
@@ -166,7 +167,7 @@ CPacket::CPacket(uint8_t *pPacketPart, uint64 nSize, bool bLast, bool bFromPF)
 	m_bFromPF = bFromPF;
 	memset(head, 0, sizeof head);
 	tempbuffer = NULL;
-	completebuffer = pPacketPart;
+	completebuffer = ownedPacketPart.release();
 	pBuffer = NULL;
 }
 
@@ -274,10 +275,6 @@ void CPacket::PackPacket()
 {
 	wxASSERT(!m_bSplitted);
 
-	// Packing is optional. Skip it if the scratch span cannot fit on all targets.
-	if (size > std::numeric_limits<uint32>::max() - 300) {
-		return;
-	}
 	uLongf newsize = static_cast<uLongf>(size) + 300;
 	uint8_t *output = new uint8_t[newsize];
 
@@ -311,8 +308,7 @@ bool CPacket::UnPackPacket(uint32 uMaxDecompressedSize)
 	}
 
 	const uint64 estimate = static_cast<uint64>(size) * 10 + 300;
-	const uint32 nInitialSize = static_cast<uint32>(std::min<uint64>(estimate, uMaxDecompressedSize));
-	uint32 nNewSize = nInitialSize;
+	uint32 nNewSize = static_cast<uint32>(std::min<uint64>(estimate, uMaxDecompressedSize));
 
 	uint8_t *unpack = new uint8_t[nNewSize];
 	uLongf unpackedsize = nNewSize;

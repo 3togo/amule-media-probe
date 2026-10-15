@@ -132,28 +132,18 @@ TEST(Packet, NumericConstructorRejectsWideLengthsBeforeNarrowing)
 	ASSERT_RAISES(CInvalidParamsEx, CPacket(int8{ 0 }, length, OP_EMULEPROT));
 }
 
-TEST(Packet, SplitConstructorRejectsWideLengthsBeforeTakingOwnership)
+TEST(Packet, SplitConstructorReleasesBufferOnInvalidLength)
 {
 	uint64 length = std::numeric_limits<uint32>::max();
 	length += 7; // formerly truncated to a valid six-byte split frame
-	uint8_t *buffer = new uint8_t[6];
-	bool rejected = false;
-	try {
-		CPacket packet(buffer, length, true);
-		buffer = nullptr; // a successful constructor takes ownership
-	} catch (const CInvalidParamsEx &) {
-		rejected = true;
-	}
-	delete[] buffer;
-	ASSERT_TRUE(rejected);
+	ASSERT_RAISES(CInvalidParamsEx, CPacket(new uint8_t[6], length, true));
 }
 
 TEST(Packet, RejectsHeaderLengthUnderflow)
 {
 	uint8_t header[6] = { OP_EMULEPROT, 0, 0, 0, 0, 0 };
 	ASSERT_RAISES(CInvalidPacket, CPacket(header, nullptr));
-	std::unique_ptr<uint8_t[]> split(new uint8_t[5]);
-	ASSERT_RAISES(CInvalidParamsEx, CPacket(split.get(), 5, true));
+	ASSERT_RAISES(CInvalidParamsEx, CPacket(new uint8_t[5], 5, true));
 }
 
 TEST(Packet, HeaderValidationDistinguishesEmptyAndInvalidPackets)

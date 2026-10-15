@@ -327,3 +327,17 @@ developers have no control over what other peers transfer through this
 medium and cannot be held liable for non-personal copyright
 infringement or other illegal activity by third parties. Share
 responsibly.
+
+### Server-list sources
+
+`addresses.dat` in the aMule configuration directory holds an ordered list of
+HTTP or HTTPS URLs for `server.met` files, one per line. Blank lines and lines
+beginning with `#` are ignored, as are unsupported URLs and duplicate entries.
+aMule reads the file when an update sequence begins, so edits apply to the next
+sequence without restarting. It does not create or rewrite this file or install
+a default backup source.
+
+The existing automatic server-list update option downloads and merges all valid
+sources in order. Local users can edit the file through the Servers preferences
+editor. For a daemon, edit the file in the daemon's configuration directory;
+remote clients do not edit that file through this setting.

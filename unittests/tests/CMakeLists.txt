@@ -2489,6 +2489,10 @@ if (ENABLE_INTEGRATION_TESTS AND BUILD_DAEMON AND UNIX AND NOT APPLE)
 					--amuled $<TARGET_FILE:amuled> --amuleapi $<TARGET_FILE:amuleapi>
 			)
 		endif ()
+		add_test (NAME ServerListSourcesIntegrationTest
+			COMMAND ${Python3_EXECUTABLE}
+				${CMAKE_CURRENT_SOURCE_DIR}/ServerListSourcesIntegrationTest.py $<TARGET_FILE:amuled>
+		)
 		add_test (NAME KnownHistoryIntegrationTest
 			COMMAND ${Python3_EXECUTABLE}
 				${CMAKE_CURRENT_SOURCE_DIR}/KnownHistoryIntegrationTest.py $<TARGET_FILE:amuled>

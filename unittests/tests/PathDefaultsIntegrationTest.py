@@ -179,7 +179,9 @@ def run(binary):
         ports = write_config(root, {})
         expected = {'TempDir': root / 'Temp ü', 'IncomingDir': root / 'Incoming д'}
         with daemon(binary, root, ports) as ec:
+            # Full detail: without it, aMule reads absent directory flags as false.
             op, tags = ec.call(C['EC_OP_SET_PREFERENCES'], [
+                tag(C['EC_TAG_DETAIL_LEVEL'], bytes([C['EC_DETAIL_FULL']]), 2),
                 tag(C['EC_TAG_PREFS_DIRECTORIES'], children=[
                     string(C['EC_TAG_DIRECTORIES_TEMP'], str(expected['TempDir'])),
                     string(C['EC_TAG_DIRECTORIES_INCOMING'], str(expected['IncomingDir']))])])

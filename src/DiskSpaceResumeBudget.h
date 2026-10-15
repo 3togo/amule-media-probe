@@ -7,7 +7,7 @@
 
 #include <cstdint>
 
-// Share one free-space snapshot across the files resumed during a queue check.
+// Share one free-space snapshot across active downloads and newly resumed files.
 // Keep the existing strict threshold: some space must remain above the floor.
 class CDiskSpaceResumeBudget
 {
@@ -19,7 +19,10 @@ public:
 
 	bool Fits(uint64_t neededBytes) const { return neededBytes < m_available; }
 
-	void Charge(uint64_t neededBytes) { m_available -= neededBytes; }
+	void Charge(uint64_t neededBytes)
+	{
+		m_available = neededBytes < m_available ? m_available - neededBytes : 0;
+	}
 
 private:
 	uint64_t m_available;

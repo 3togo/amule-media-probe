@@ -1306,6 +1306,24 @@ void CDownloadQueue::CheckDiskspace(const CPath &path)
 	}
 
 	CDiskSpaceResumeBudget resumeBudget(free, min);
+	// Reserve the remaining space for active downloads on every check, including
+	// files resumed by an earlier check that have not received any data yet.
+	for (CPartFile *file : m_filelist) {
+		switch (file->GetStatus()) {
+		case PS_PAUSED:
+		case PS_INSUFFICIENT:
+		case PS_ERROR:
+		case PS_COMPLETING:
+		case PS_COMPLETE:
+			continue;
+		}
+
+		const uint64 needed = file->GetNeededSpace();
+		if (file->GetStatus() != PS_ERROR) {
+			resumeBudget.Charge(needed);
+		}
+	}
+
 	for (FileQueue::size_type i = 0; i < m_filelist.size(); ++i) {
 		CPartFile *file = m_filelist[i];
 

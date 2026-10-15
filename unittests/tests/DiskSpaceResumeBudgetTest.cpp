@@ -13,48 +13,46 @@ DECLARE_SIMPLE(DiskSpaceResumeBudget)
 TEST(DiskSpaceResumeBudget, NeededSpaceLargerThanFreeDoesNotWrap)
 {
 	CDiskSpaceResumeBudget budget(100, 10);
-	bool called = false;
-	ASSERT_FALSE(budget.TryResume(101, [&called] {
-		called = true;
-		return true;
-	}));
-	ASSERT_FALSE(called);
-	ASSERT_TRUE(budget.TryResume(89, [] { return true; }));
+	ASSERT_FALSE(budget.Fits(101));
+	ASSERT_TRUE(budget.Fits(89));
 }
 
 TEST(DiskSpaceResumeBudget, MultipleFilesCannotSpendTheSameFreeSpace)
 {
 	CDiskSpaceResumeBudget budget(100, 10);
-	ASSERT_TRUE(budget.TryResume(60, [] { return true; }));
-	ASSERT_FALSE(budget.TryResume(60, [] { return true; }));
-	ASSERT_TRUE(budget.TryResume(29, [] { return true; }));
-	ASSERT_FALSE(budget.TryResume(1, [] { return true; }));
+	ASSERT_TRUE(budget.Fits(60));
+	budget.Charge(60);
+	ASSERT_FALSE(budget.Fits(60));
+	ASSERT_TRUE(budget.Fits(29));
+	budget.Charge(29);
+	ASSERT_FALSE(budget.Fits(1));
 }
 
 TEST(DiskSpaceResumeBudget, FailedResumeLeavesSpaceForTheNextFile)
 {
 	CDiskSpaceResumeBudget budget(100, 10);
-	ASSERT_FALSE(budget.TryResume(80, [] { return false; }));
-	ASSERT_TRUE(budget.TryResume(89, [] { return true; }));
+	// A failed ResumeFile does not call Charge.
+	ASSERT_TRUE(budget.Fits(80));
+	ASSERT_TRUE(budget.Fits(89));
 }
 
 TEST(DiskSpaceResumeBudget, PreservesStrictMinimumFreeSpaceBoundary)
 {
 	for (uint64_t free : { 0u, 9u, 10u }) {
 		CDiskSpaceResumeBudget budget(free, 10);
-		ASSERT_FALSE(budget.TryResume(0, [] { return true; }));
+		ASSERT_FALSE(budget.Fits(0));
 	}
 	CDiskSpaceResumeBudget budget(100, 10);
-	ASSERT_FALSE(budget.TryResume(90, [] { return true; }));
-	ASSERT_TRUE(budget.TryResume(89, [] { return true; }));
-	ASSERT_TRUE(budget.TryResume(0, [] { return true; }));
+	ASSERT_FALSE(budget.Fits(90));
+	ASSERT_TRUE(budget.Fits(89));
+	ASSERT_TRUE(budget.Fits(0));
 }
 
 TEST(DiskSpaceResumeBudget, MaximumValuesCannotOverflowThreshold)
 {
 	const uint64_t maximum = std::numeric_limits<uint64_t>::max();
 	CDiskSpaceResumeBudget budget(maximum, maximum - 10);
-	ASSERT_FALSE(budget.TryResume(maximum, [] { return true; }));
-	ASSERT_FALSE(budget.TryResume(10, [] { return true; }));
-	ASSERT_TRUE(budget.TryResume(9, [] { return true; }));
+	ASSERT_FALSE(budget.Fits(maximum));
+	ASSERT_FALSE(budget.Fits(10));
+	ASSERT_TRUE(budget.Fits(9));
 }

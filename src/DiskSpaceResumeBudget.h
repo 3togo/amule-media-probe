@@ -17,13 +17,13 @@ public:
 	{
 	}
 
-	template <typename Resume> bool TryResume(uint64_t neededBytes, Resume resume)
+	bool Fits(uint64_t neededBytes) const { return neededBytes < m_available; }
+
+	void Charge(uint64_t neededBytes)
 	{
-		if (neededBytes >= m_available || !resume()) {
-			return false;
+		if (Fits(neededBytes)) {
+			m_available -= neededBytes;
 		}
-		m_available -= neededBytes;
-		return true;
 	}
 
 private:

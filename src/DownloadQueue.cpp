@@ -1319,11 +1319,11 @@ void CDownloadQueue::CheckDiskspace(const CPath &path)
 		if (free >= min && file->GetInsufficient()) {
 			const uint64 needed = file->GetNeededSpace();
 			// GetNeededSpace can mark the file as erroneous on an I/O failure.
-			if (file->GetStatus() != PS_ERROR) {
-				resumeBudget.TryResume(needed, [file] {
-					file->ResumeFile();
-					return !file->GetInsufficient();
-				});
+			if (file->GetStatus() != PS_ERROR && resumeBudget.Fits(needed)) {
+				file->ResumeFile();
+				if (!file->GetInsufficient()) {
+					resumeBudget.Charge(needed);
+				}
 			}
 		} else if (free < min && !file->IsPaused()) {
 			file->PauseFile(true);

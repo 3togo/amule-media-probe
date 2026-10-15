@@ -1,0 +1,15 @@
+Local validation: PR 1 server-list sources
+
+Implementation branch: pr/1354-server-sources-draft
+
+Passed:
+- Combined Debug build of amule, amulegui and amuled with BUILD_TESTING and ENABLE_INTEGRATION_TESTS enabled.
+- CTest ServerListSourcesTest (comment/URL filtering, stable ordering, duplicates, preservation of input, live edits, 300 sources, empty and missing files).
+- CTest ServerListSourcesIntegrationTest (real local HTTP startup downloads, ordered merge of all sources, duplicate filtering, preservation of the source file and existing servers).
+- clang-format-18 checks on changed C++ code.
+- clang-tidy-18 on the source-reader test and ServerList.cpp, plus changed-line project checks against upstream/master; no reported code diagnostics.
+- scripts/check-potfiles.sh, regenerated po/amule.pot, scripts/check-po-drift.sh po/amule.pot and git diff --check.
+
+The repository's newer clang-tidy configuration uses ExcludeHeaderFilterRegex, which clang-tidy-18 does not recognize. Analysis used temporary copies of both project configurations with only that key omitted; no repository configuration was changed.
+
+No default backup source has been approved or installed. Native Windows/macOS runtime behavior and editing through the GUI were not exercised by this headless Linux validation. Nothing was pushed or submitted.

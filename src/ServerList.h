@@ -45,7 +45,8 @@ public:
 	bool RemoveServer(CServer *in_server, bool fromUser = false);
 	void RemoveAllServers();
 	void RemoveDeadServers();
-	bool LoadServerMet(const CPath &path);
+	// Local startup files may be salvaged; downloaded lists must parse completely.
+	bool LoadServerMet(const CPath &path, bool allowPartial = true);
 	bool SaveServerMet();
 	void ServerStats();
 	void ResetServerPos() { m_serverpos = m_servers.begin(); }
@@ -61,7 +62,8 @@ public:
 	bool IsInitialized() const { return m_initialized; }
 	void Sort();
 	// showDialog shows the HTTP progress dialog, for a local, user-initiated update only.
-	void UpdateServerMetFromURL(const wxString &strURL, bool showDialog = false);
+	void UpdateServerMetFromURL(
+		const wxString &strURL, bool showDialog = false, bool allowFallback = true);
 	bool DownloadFinished(uint32 result);
 	void AutoDownloadFinished(uint32 result);
 	uint32 GetAvgFile() const;

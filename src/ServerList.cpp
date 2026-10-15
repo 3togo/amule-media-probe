@@ -87,7 +87,7 @@ void CServerList::StartAutoUpdate()
 	AutoUpdate();
 }
 
-bool CServerList::LoadServerMet(const CPath &path)
+bool CServerList::LoadServerMet(const CPath &path, bool allowPartial)
 {
 	AddLogLineN(CFormat(_("Loading server.met file: %s")) % path);
 
@@ -136,7 +136,11 @@ bool CServerList::LoadServerMet(const CPath &path)
 		AddLogLineC(_("IO error while reading 'server.met': ") + err.what());
 	}
 
-	// The servers read before an error are still added.
+	if (!readAll && !allowPartial) {
+		return false;
+	}
+
+	// Startup can still salvage servers from a damaged local file.
 	Notify_ServerFreeze();
 	uint32 iAddCount = 0;
 	for (const ServerMetRecord &record : records) {
@@ -802,7 +806,7 @@ void CServerList::RemoveDeadServers()
 	}
 }
 
-void CServerList::UpdateServerMetFromURL(const wxString &strURL, bool showDialog)
+void CServerList::UpdateServerMetFromURL(const wxString &strURL, bool showDialog, bool allowFallback)
 {
 	if (m_serverMetDownloading) {
 		AddLogLineN(_("A server list download is already in progress."));
@@ -816,8 +820,9 @@ void CServerList::UpdateServerMetFromURL(const wxString &strURL, bool showDialog
 	}
 	// Only the configured primary uses the backup. An explicitly entered URL
 	// must not silently fetch a different list. An empty backup disables failover.
-	m_serverMetFallback =
-		strURL == thePrefs::GetEd2kServersUrl() ? thePrefs::GetEd2kServersFallbackUrl() : wxString();
+	m_serverMetFallback = allowFallback && strURL == thePrefs::GetEd2kServersUrl()
+				      ? thePrefs::GetEd2kServersFallbackUrl()
+				      : wxString();
 	if (m_serverMetFallback == strURL) {
 		m_serverMetFallback.clear();
 	}
@@ -848,7 +853,7 @@ bool CServerList::DownloadFinished(uint32 result)
 	bool loaded = false;
 	if (result == HTTP_Success) {
 		const CPath temporary(thePrefs::GetConfigDir() + "server.met.download");
-		loaded = LoadServerMet(temporary);
+		loaded = LoadServerMet(temporary, false);
 		if (loaded) {
 			SaveServerMet();
 			AddLogLineN(
@@ -921,8 +926,9 @@ void CServerList::AutoDownloadFinished(uint32 result)
 	if (result == HTTP_Success) {
 		CPath tempFilename = CPath(thePrefs::GetConfigDir() + "server_auto.met");
 
-		LoadServerMet(tempFilename);
-		SaveServerMet();
+		if (LoadServerMet(tempFilename, false)) {
+			SaveServerMet();
+		}
 
 		CPath::RemoveFile(tempFilename);
 	} else {

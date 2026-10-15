@@ -162,12 +162,15 @@ CServerWnd::~CServerWnd()
 
 void CServerWnd::UpdateServerMetFromURL(const wxString &strURL)
 {
+#ifndef CLIENT_GUI
+	const bool allowFallback = strURL == thePrefs::GetEd2kServersUrl();
+#endif
 	thePrefs::SetEd2kServersUrl(strURL);
 #ifdef CLIENT_GUI
 	// Runs on the core, which shows no dialog for a remote request.
 	theApp->serverlist->UpdateServerMetFromURL(strURL);
 #else
-	theApp->serverlist->UpdateServerMetFromURL(strURL, true);
+	theApp->serverlist->UpdateServerMetFromURL(strURL, true, allowFallback);
 #endif
 }
 

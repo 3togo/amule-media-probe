@@ -2188,13 +2188,13 @@ wxSizer *PreferencesGuiTweaksTab( wxWindow *parent, bool call_fit, bool set_size
 #if wxCHECK_VERSION(3, 3, 0)
     wxBoxSizer *appearanceRow = new wxBoxSizer(wxHORIZONTAL);
     appearanceRow->Add(new wxStaticText(parent, wxID_ANY, _("Appearance: ")),
-        wxSizerFlags().CenterVertical().Right());
+        wxSizerFlags().CenterVertical());
     auto *appearance = new wxChoice(parent, IDC_APPEARANCE);
     appearance->Insert(_("Follow system"), static_cast<unsigned int>(CamuleGuiBase::AppearanceChoice::System));
     appearance->Insert(_("Light"), static_cast<unsigned int>(CamuleGuiBase::AppearanceChoice::Light));
     appearance->Insert(_("Dark"), static_cast<unsigned int>(CamuleGuiBase::AppearanceChoice::Dark));
-    appearanceRow->Add(appearance, wxSizerFlags().Center().Border(wxLEFT|wxRIGHT, 0));
-    item0->Add(appearanceRow, wxSizerFlags().Expand().CenterVertical().Border(wxTOP|wxBOTTOM, 5));
+    appearanceRow->Add(appearance, wxSizerFlags().CenterVertical());
+    item0->Add(appearanceRow, wxSizerFlags().Expand().Border(wxTOP|wxBOTTOM, 5));
     item0->Add(new wxStaticText(parent, wxID_ANY, _("Appearance changes take effect after restarting aMule.")),
         wxSizerFlags().Border(wxBOTTOM, 10));
 #endif

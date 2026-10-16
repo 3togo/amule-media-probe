@@ -10,7 +10,7 @@ msgstr ""
 "Project-Id-Version: aMule\n"
 "Report-Msgid-Bugs-To: https://github.com/amule-org/amule/issues\n"
 "POT-Creation-Date: 2026-10-09 12:39+0000\n"
-"PO-Revision-Date: 2026-10-07 16:23+0000\n"
+"PO-Revision-Date: 2026-10-16 08:33+0000\n"
 "Last-Translator: David Watzke <david@watzke.cz>\n"
 "Language-Team: cs <cs@li.org>\n"
 "Language: cs\n"
@@ -206,11 +206,16 @@ msgid ""
 "\n"
 "The file is deleted and no longer shared. This cannot be undone."
 msgstr ""
+"Opravdu chcete smazat '%s' z disku?\n"
+"\n"
+"Soubor: %s\n"
+"\n"
+"Soubor bude smazán a nebude sdílen. Nelze to vzít zpět."
 
 #: src/GuiEvents.cpp
 #, c-format
 msgid "... and %i more"
-msgstr ""
+msgstr "... a %i dalších"
 
 #: src/GuiEvents.cpp
 #, c-format
@@ -220,26 +225,29 @@ msgid ""
 "%s\n"
 "The files are deleted and no longer shared. This cannot be undone."
 msgstr ""
+"Opravdu chcete smazat vybraných %i souborů z disku?\n"
+"\n"
+"%s\n"
+"Soubory budou smazány a nebudou sdíleny. Nelze to vzít zpět."
 
 #: src/GuiEvents.cpp
-#, fuzzy
 msgid "Delete from disk"
-msgstr "Získat ze sítě Kad"
+msgstr "Smazat z disku"
 
 #: src/GuiEvents.cpp
 #, c-format
 msgid "Skipped deleting '%s': the selected file has changed."
-msgstr ""
+msgstr "Vynecháno smazání '%s': vybraný soubor byl změněn."
 
 #: src/GuiEvents.cpp
 #, c-format
 msgid "Deleted '%s' from disk."
-msgstr ""
+msgstr "Smazán '%s' z disku."
 
 #: src/GuiEvents.cpp
-#, fuzzy, c-format
+#, c-format
 msgid "Could not delete '%s' from disk."
-msgstr "Nešlo smazat kategorii: %s"
+msgstr "Nešlo smazat '%s' z disku."
 
 #: src/GuiEvents.cpp
 #, c-format
@@ -252,6 +260,13 @@ msgid ""
 "Yes: stop sharing and remove the list entries. A later share scan may share the files again.\n"
 "No: keep the files shared and listed."
 msgstr ""
+"Nelze smazat tyto soubory z disku:\n"
+"\n"
+"%s\n"
+"Mají být přesto odebrány ze sdílení a seznamu dokončených přenosů?\n"
+"\n"
+"Ano: přestat sdílet a odebrat ze seznamu. Další skenování sdílení může znovu sdílet soubory.\n"
+"Ne: pokračovat ve sdílení a zanechat na seznamu."
 
 #: src/amuleAppCommon.cpp
 msgid "Failed to open ED2KLinks file."
@@ -536,12 +551,12 @@ msgstr ""
 #: src/amule.cpp
 #, c-format
 msgid "External connection: could not bind to '%s', listening on 127.0.0.1 only."
-msgstr "Externí spojení: není možné přidružit k '%s', naslouchání pouze na 127.0.0.1."
+msgstr "Externí spojení: není možné svázat s '%s', naslouchání pouze na 127.0.0.1."
 
 #: src/amule.cpp
 #, c-format
 msgid "Could not bind ports to the specified address: %s"
-msgstr "Nebylo možné přidružit porty k zadané adrese: %s"
+msgstr "Nebylo možné svázat porty se zadanou adresou: %s"
 
 #: src/amule.cpp
 #, c-format
@@ -3216,6 +3231,11 @@ msgstr "Stahování..."
 #: src/HTTPDownload.cpp
 msgid "HTTP download cancelled"
 msgstr "Stahování přes HTTP bylo zrušeno"
+
+#: src/HTTPDownload.cpp
+#, c-format
+msgid "HTTP download of %s stopped: it is larger than %u MiB."
+msgstr ""
 
 #: src/HTTPDownload.cpp
 msgid "The URL to download can't be empty"
@@ -7261,11 +7281,6 @@ msgstr "Hledání Kad: vyžádány rozšířené výsledky od dalšího uzlu."
 msgid "Kad search: no peer left to reask for more results (cap reached or no responses yet)."
 msgstr "Kad hledání: nezůstal žádný peer, kterého by bylo možné znovu požádat o další výsledky (dosažen limit nebo zatím žádné odpovědi)."
 
-#: src/SearchList.cpp
-#, c-format
-msgid "Error %u: %s\n"
-msgstr "Chyba %u: %s\n"
-
 #: src/SearchListCtrl.cpp
 msgid "FileID"
 msgstr "ID souboru"
@@ -7334,6 +7349,11 @@ msgstr "Připojit se k síti."
 #: src/SearchModeIcons.h
 msgid "Search eD2k servers and Kad, using whichever networks are available."
 msgstr ""
+
+#: src/SearchPacket.cpp
+#, c-format
+msgid "Error %u: %s\n"
+msgstr "Chyba %u: %s\n"
 
 #: src/SearchProgressReport.cpp
 msgid "running"

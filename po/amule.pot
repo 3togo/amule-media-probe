@@ -3110,6 +3110,11 @@ msgid "HTTP download cancelled"
 msgstr ""
 
 #: src/HTTPDownload.cpp
+#, c-format
+msgid "HTTP download of %s stopped: it is larger than %u MiB."
+msgstr ""
+
+#: src/HTTPDownload.cpp
 msgid "The URL to download can't be empty"
 msgstr ""
 
@@ -6458,36 +6463,36 @@ msgstr ""
 msgid "%d KiB/s (%.2f MiB/s)"
 msgstr ""
 
-#: src/PrefsUnifiedDlg.cpp src/Statistics.cpp
-msgid "Connection"
-msgstr ""
-
-#: src/PrefsUnifiedDlg.cpp src/SearchListCtrl.cpp
-msgid "Directories"
-msgstr ""
-
-#: src/PrefsUnifiedDlg.cpp src/Statistics.cpp
-msgid "Servers"
-msgstr ""
-
-#: src/PrefsUnifiedDlg.cpp
-msgid "Security"
-msgstr ""
-
 #: src/PrefsUnifiedDlg.cpp
 msgid "Interface"
 msgstr ""
 
-#: src/PrefsUnifiedDlg.cpp
-msgid "IP2Country"
+#: src/PrefsUnifiedDlg.cpp src/Statistics.cpp
+msgid "Connection"
 msgstr ""
 
 #: src/PrefsUnifiedDlg.cpp
 msgid "Proxy"
 msgstr ""
 
+#: src/PrefsUnifiedDlg.cpp src/Statistics.cpp
+msgid "Servers"
+msgstr ""
+
+#: src/PrefsUnifiedDlg.cpp src/SearchListCtrl.cpp
+msgid "Directories"
+msgstr ""
+
+#: src/PrefsUnifiedDlg.cpp
+msgid "Events"
+msgstr ""
+
 #: src/PrefsUnifiedDlg.cpp
 msgid "Filters"
+msgstr ""
+
+#: src/PrefsUnifiedDlg.cpp
+msgid "Security"
 msgstr ""
 
 #: src/PrefsUnifiedDlg.cpp
@@ -6499,11 +6504,11 @@ msgid "Online Signature"
 msgstr ""
 
 #: src/PrefsUnifiedDlg.cpp
-msgid "Advanced"
+msgid "IP2Country"
 msgstr ""
 
 #: src/PrefsUnifiedDlg.cpp
-msgid "Events"
+msgid "Advanced"
 msgstr ""
 
 #: src/PrefsUnifiedDlg.cpp

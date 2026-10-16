@@ -76,23 +76,30 @@ void TestLimitControl()
 			limitValue);
 		auto *enabled = new wxCheckBox(&dialog, enabledId, "Enable limit");
 		auto *equivalent = new wxStaticText(&dialog, wxID_ANY, wxEmptyString);
-		auto *slider =
-			new BandwidthLimitSlider(&dialog, sliderId, limit, capacity, enabled, equivalent);
-		return std::make_tuple(capacity, limit, enabled, equivalent, slider);
+		auto *capacityEquivalent = new wxStaticText(&dialog, wxID_ANY, wxEmptyString);
+		auto *slider = new BandwidthLimitSlider(
+			&dialog, sliderId, limit, capacity, enabled, equivalent, capacityEquivalent);
+		return std::make_tuple(capacity, limit, enabled, equivalent, capacityEquivalent, slider);
 	};
 
-	auto [downloadCapacity, downloadLimit, downloadEnabled, downloadEquivalent, downloadSlider] =
-		makeControl(IDC_DOWNLOAD_CAP,
-			IDC_MAXDOWN,
-			IDC_DOWNLOAD_LIMIT_ENABLED,
-			IDC_DOWNLOAD_LIMIT_SLIDER,
-			51200,
-			51200);
+	auto [downloadCapacity,
+		downloadLimit,
+		downloadEnabled,
+		downloadEquivalent,
+		downloadCapacityEquivalent,
+		downloadSlider] = makeControl(IDC_DOWNLOAD_CAP,
+		IDC_MAXDOWN,
+		IDC_DOWNLOAD_LIMIT_ENABLED,
+		IDC_DOWNLOAD_LIMIT_SLIDER,
+		51200,
+		51200);
 	Check(downloadSlider->GetMin() == 1 && downloadSlider->GetMax() == 51200,
 		"Slider must cover 1 KiB/s through the full line capacity");
 	Check(downloadSlider->GetValue() == 51200 && downloadEnabled->GetValue(),
 		"Loaded limit must enable and position the slider");
 	Check(downloadEquivalent->GetLabel().Contains("50.00 MiB/s"), "MiB/s conversion is wrong");
+	Check(downloadCapacityEquivalent->GetLabel().Contains("50.00 MiB/s"),
+		"Loaded capacity equivalent is wrong");
 	int notifiedValue = -1;
 	dialog.Bind(
 		wxEVT_SPINCTRL,
@@ -125,18 +132,20 @@ void TestLimitControl()
 	Check(downloadLimit->GetValue() == 40000 && downloadSlider->IsEnabled(),
 		"Re-enabling must restore the previous limit");
 
-	downloadCapacity->SetValue(80000);
+	downloadCapacity->SetValue(81920);
 	wxCommandEvent capacityChanged(wxEVT_TEXT, downloadCapacity->GetId());
 	capacityChanged.SetEventObject(downloadCapacity);
 	downloadCapacity->GetEventHandler()->ProcessEvent(capacityChanged);
-	Check(downloadSlider->GetMax() == 80000 && downloadSlider->GetValue() == 40000,
+	Check(downloadSlider->GetMax() == 81920 && downloadSlider->GetValue() == 40000,
 		"Changing capacity must update the range without moving the selected limit");
+	Check(downloadCapacityEquivalent->GetLabel().Contains("80.00 MiB/s"),
+		"Changing capacity must update its MiB/s equivalent");
 
 	downloadLimit->SetValue(1000000);
 	wxCommandEvent limitTyped(wxEVT_TEXT, downloadLimit->GetId());
 	limitTyped.SetEventObject(downloadLimit);
 	downloadLimit->GetEventHandler()->ProcessEvent(limitTyped);
-	Check(downloadSlider->GetMax() == 80000 && downloadSlider->GetValue() == 80000,
+	Check(downloadSlider->GetMax() == 81920 && downloadSlider->GetValue() == 81920,
 		"A saved limit above capacity must not expand the slider range");
 	Check(downloadEquivalent->GetLabel().Contains("976.56 MiB/s"),
 		"The label must retain the exact saved limit above capacity");
@@ -148,17 +157,38 @@ void TestLimitControl()
 	downloadEnabled->GetEventHandler()->ProcessEvent(disable);
 	downloadEnabled->SetValue(true);
 	downloadEnabled->GetEventHandler()->ProcessEvent(enable);
-	Check(downloadLimit->GetValue() == 1000000 && downloadSlider->GetValue() == 80000,
+	Check(downloadLimit->GetValue() == 1000000 && downloadSlider->GetValue() == 81920,
 		"Toggling a limit above capacity must restore the exact saved value");
 
-	auto [uploadCapacity, uploadLimit, uploadEnabled, uploadEquivalent, uploadSlider] = makeControl(
-		IDC_UPLOAD_CAP, IDC_MAXUP, IDC_UPLOAD_LIMIT_ENABLED, IDC_UPLOAD_LIMIT_SLIDER, 2500, 0);
-	SyncBandwidthLimitSliders(&dialog);
+	auto [uploadCapacity,
+		uploadLimit,
+		uploadEnabled,
+		uploadEquivalent,
+		uploadCapacityEquivalent,
+		uploadSlider] = makeControl(IDC_UPLOAD_CAP,
+		IDC_MAXUP,
+		IDC_UPLOAD_LIMIT_ENABLED,
+		IDC_UPLOAD_LIMIT_SLIDER,
+		2500,
+		10);
+	// The widget starts with its built-in default, then preferences load unlimited.
+	uploadLimit->SetValue(0);
+	InitializeBandwidthLimitSliders(&dialog);
 	Check(uploadLimit->GetValue() == 0 && !uploadEnabled->GetValue() && !uploadSlider->IsEnabled() &&
 			uploadSlider->GetMin() == 1,
 		"Loaded zero must keep the upload limit disabled");
+	Check(uploadCapacityEquivalent->GetLabel().Contains("2.44 MiB/s"),
+		"Loaded upload capacity equivalent is wrong");
 	Check(uploadEquivalent->GetMinSize().x >= uploadEquivalent->GetTextExtent(_("Unlimited")).x,
 		"The unlimited label must fit the reserved width");
+
+	uploadEnabled->SetValue(true);
+	wxCommandEvent enableUpload(wxEVT_CHECKBOX, uploadEnabled->GetId());
+	enableUpload.SetInt(1);
+	enableUpload.SetEventObject(uploadEnabled);
+	uploadEnabled->GetEventHandler()->ProcessEvent(enableUpload);
+	Check(uploadLimit->GetValue() == 2500 && uploadSlider->GetValue() == 2500,
+		"First enable after loading unlimited must start at line capacity");
 }
 } // namespace
 

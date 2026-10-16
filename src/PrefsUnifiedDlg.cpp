@@ -26,6 +26,7 @@
 #include "PrefsUnifiedDlg.h"
 #include "DialogLayout.h"
 #include "BandwidthLimitSlider.h"
+#include "PrefsPageRows.h"
 
 #include <common/Constants.h>
 #include <common/Macros.h> // Needed for itemsof()
@@ -255,7 +256,10 @@ struct PrefsPage
 };
 
 PrefsPage pages[] = { { wxTRANSLATE("General"), PreferencesGeneralTab, 13, "prefs_general" },
+	{ wxTRANSLATE("Interface"), PreferencesGuiTweaksTab, 19, "prefs_interface" },
 	{ wxTRANSLATE("Connection"), PreferencesConnectionTab, 14, "prefs_connection" },
+	{ wxTRANSLATE("Proxy"), PreferencesProxyTab, 24, "prefs_proxy" },
+	{ wxTRANSLATE("Servers"), PreferencesServerTab, 15, "prefs_servers" },
 	{ wxTRANSLATE("Directories"), PreferencesDirectoriesTab, 17, "prefs_directories" },
 #ifdef CLIENT_GUI
 	// Remote-only (issue #843): mapping a daemon's path space onto this machine's has no
@@ -263,24 +267,18 @@ PrefsPage pages[] = { { wxTRANSLATE("General"), PreferencesGeneralTab, 13, "pref
 	// Directories, the other page about paths.
 	{ wxTRANSLATE("Path Mappings"), PreferencesPathMappingTab, 17, "prefs_pathmapping" },
 #endif
-	{ wxTRANSLATE("Servers"), PreferencesServerTab, 15, "prefs_servers" },
 	{ wxTRANSLATE("Files"), PreferencesFilesTab, 16, "prefs_files" },
-	{ wxTRANSLATE("Security"), PreferencesSecurityTab, 22, "prefs_security" },
-	{ wxTRANSLATE("Interface"), PreferencesGuiTweaksTab, 19, "prefs_interface" },
-#ifdef GEOIP_GUI
-	// Inserted between Interface and Statistics so the GeoIP / country-flag settings sit
-	// next to the related display option. Hidden from the page list when ENABLE_IP2COUNTRY
-	// is off, so users who built without libmaxminddb do not see a panel that cannot
-	// function.
-	{ wxTRANSLATE("IP2Country"), PreferencesIP2CountryTab, 13, "prefs_ip2country" },
-#endif
+	{ wxTRANSLATE("Events"), PreferencesEventsTab, 5, "prefs_events" },
 	{ wxTRANSLATE("Statistics"), PreferencesStatisticsTab, 10, "prefs_statistics" },
-	{ wxTRANSLATE("Proxy"), PreferencesProxyTab, 24, "prefs_proxy" },
 	{ wxTRANSLATE("Filters"), PreferencesFilteringTab, 23, "prefs_filters" },
+	{ wxTRANSLATE("Security"), PreferencesSecurityTab, 22, "prefs_security" },
 	{ wxTRANSLATE("Remote Controls"), PreferencesRemoteControlsTab, 11, "prefs_remote" },
 	{ wxTRANSLATE("Online Signature"), PreferencesOnlineSigTab, 21, "prefs_onlinesig" },
-	{ wxTRANSLATE("Advanced"), PreferencesaMuleTweaksTab, 12, "prefs_advanced" },
-	{ wxTRANSLATE("Events"), PreferencesEventsTab, 5, "prefs_events" }
+#ifdef GEOIP_GUI
+	// Hidden when ENABLE_IP2COUNTRY is off: builds without libmaxminddb cannot use it.
+	{ wxTRANSLATE("IP2Country"), PreferencesIP2CountryTab, 13, "prefs_ip2country" },
+#endif
+	{ wxTRANSLATE("Advanced"), PreferencesaMuleTweaksTab, 12, "prefs_advanced" }
 #ifdef __DEBUG__
 	,
 	{ wxTRANSLATE("Debugging"), PreferencesDebug, 25, "prefs_debug" }
@@ -597,10 +595,13 @@ PrefsUnifiedDlg::PrefsUnifiedDlg(wxWindow *parent)
 	// amulegui: drop the IP2Country page from the menu when the connected core has no
 	// GeoIP support -- a 3.1+ core built without ENABLE_IP2COUNTRY, or a pre-3.1 core that
 	// does not know the capability at all. Mirrors how monolithic amule omits the page at
-	// compile time. Must run before EnableServerTab, which may delete the earlier server
-	// tab and shift this index; the page widget stays built but becomes unreachable.
+	// compile time. The page widget stays built but becomes unreachable.
 	if (!thePrefs::IsGeoIPSupported() && m_IndexIP2CountryTab >= 0) {
-		m_PrefsIcons->DeleteItem(m_IndexIP2CountryTab);
+		const int row =
+			PrefsPageRows::Find(ShownPages(), static_cast<unsigned>(m_IndexIP2CountryTab));
+		if (row >= 0) {
+			m_PrefsIcons->DeleteItem(row);
+		}
 		m_IndexIP2CountryTab = -1;
 	}
 #endif
@@ -681,13 +682,29 @@ void PrefsUnifiedDlg::EnableServerTab(bool enable)
 		wxVector<wxVariant> values;
 		values.push_back(wxVariant(wxDataViewIconText(
 			wxGetTranslation(pages[m_IndexServerTab].m_title), m_pageIcons[m_IndexServerTab])));
-		m_PrefsIcons->InsertItem(m_IndexServerTab, values, (wxUIntPtr)m_IndexServerTab);
+		m_PrefsIcons->InsertItem(
+			PrefsPageRows::InsertionRow(ShownPages(), static_cast<unsigned>(m_IndexServerTab)),
+			values,
+			(wxUIntPtr)m_IndexServerTab);
 		m_ServerTabVisible = true;
 	} else if (!enable && m_ServerTabVisible) {
 		// turn server widget off
-		m_PrefsIcons->DeleteItem(m_IndexServerTab);
+		const int row = PrefsPageRows::Find(ShownPages(), static_cast<unsigned>(m_IndexServerTab));
+		if (row >= 0) {
+			m_PrefsIcons->DeleteItem(row);
+		}
 		m_ServerTabVisible = false;
 	}
+}
+
+std::vector<unsigned> PrefsUnifiedDlg::ShownPages() const
+{
+	std::vector<unsigned> shown;
+	for (int row = 0; row < m_PrefsIcons->GetItemCount(); ++row) {
+		shown.push_back(
+			static_cast<unsigned>(m_PrefsIcons->GetItemData(m_PrefsIcons->RowToItem(row))));
+	}
+	return shown;
 }
 
 Cfg_Base *PrefsUnifiedDlg::GetCfg(int id)
@@ -714,7 +731,7 @@ bool PrefsUnifiedDlg::TransferToWindow()
 		}
 	}
 
-	SyncBandwidthLimitSliders(this);
+	InitializeBandwidthLimitSliders(this);
 
 #ifdef CLIENT_GUI
 	// Cfg transfer can re-enable command fields from saved checkbox values.

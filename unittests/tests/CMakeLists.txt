@@ -86,6 +86,12 @@ add_test (NAME ECNotificationDrainTest COMMAND ECNotificationDrainTest)
 target_include_directories (ECNotificationDrainTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries (ECNotificationDrainTest muleunit mulecommon)
 
+# Source and notes publication traversal without a running Kad instance.
+add_executable (KadPublishCursorTest KadPublishCursorTest.cpp)
+add_test (NAME KadPublishCursorTest COMMAND KadPublishCursorTest)
+target_include_directories (KadPublishCursorTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries (KadPublishCursorTest muleunit mulecommon)
+
 # Callback and buddy eligibility without a running Kad instance.
 add_executable (KadCallbackPolicyTest KadCallbackPolicyTest.cpp)
 add_test (NAME KadCallbackPolicyTest COMMAND KadCallbackPolicyTest)
@@ -772,6 +778,28 @@ target_include_directories (CValueMapTest
 target_link_libraries (CValueMapTest
 	muleunit
 	ec
+	mulecommon
+)
+
+# Where a preferences page sits in the sidebar while other pages are hidden: the
+# row is the page's position among the pages shown, not its pages[] index.
+# Header-only, so it needs no wx and no GUI.
+add_executable (PrefsPageRowsTest
+	PrefsPageRowsTest.cpp
+)
+
+add_test (NAME PrefsPageRowsTest
+	COMMAND PrefsPageRowsTest
+)
+
+target_include_directories (PrefsPageRowsTest
+	PRIVATE ${CMAKE_BINARY_DIR}
+	PRIVATE ${CMAKE_SOURCE_DIR}/src
+	PRIVATE ${CMAKE_SOURCE_DIR}/src/include
+)
+
+target_link_libraries (PrefsPageRowsTest
+	muleunit
 	mulecommon
 )
 

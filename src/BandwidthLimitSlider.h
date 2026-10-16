@@ -45,12 +45,14 @@ public:
 		wxSpinCtrl *limit,
 		wxSpinCtrl *capacity,
 		wxCheckBox *enabled,
-		wxStaticText *equivalent)
+		wxStaticText *equivalent,
+		wxStaticText *capacityEquivalent)
 	: wxSlider(parent, id, 1, 1, capacity->GetValue())
 	, m_limit(limit)
 	, m_capacity(capacity)
 	, m_enabled(enabled)
 	, m_equivalent(equivalent)
+	, m_capacityEquivalent(capacityEquivalent)
 	, m_lastLimit(1)
 	{
 		SetName(limit->GetId() == IDC_MAXDOWN ? _("Download limit") : _("Upload limit"));
@@ -60,6 +62,7 @@ public:
 		wxSize minimum = m_equivalent->GetTextExtent(_("Unlimited"));
 		minimum.IncTo(maximum);
 		m_equivalent->SetMinSize(minimum);
+		m_capacityEquivalent->SetMinSize(maximum);
 		Sync();
 		Bind(wxEVT_SLIDER, [this](wxCommandEvent &) {
 			m_limit->SetValue(GetValue());
@@ -68,7 +71,7 @@ public:
 		enabled->Bind(wxEVT_CHECKBOX, [this](wxCommandEvent &event) {
 			if (event.IsChecked()) {
 				// A saved or typed limit may exceed capacity; only the slider is clamped.
-				m_limit->SetValue(m_lastLimit);
+				m_limit->SetValue(m_lastLimit ? m_lastLimit : m_capacity->GetValue());
 			} else {
 				m_limit->SetValue(0);
 			}
@@ -92,6 +95,14 @@ public:
 		});
 	}
 
+	void InitializeFromPreference()
+	{
+		// Constructor defaults are not a previously enabled limit. TransferToWindow()
+		// has now loaded the actual saved value, which may be unlimited (zero).
+		m_lastLimit = m_limit->GetValue();
+		Sync();
+	}
+
 	void Sync()
 	{
 		const int value = m_limit->GetValue();
@@ -106,6 +117,8 @@ public:
 		m_equivalent->SetLabel(
 			value == 0 ? _("Unlimited")
 				   : wxString::Format(_("%d KiB/s (%.2f MiB/s)"), value, value / 1024.0));
+		m_capacityEquivalent->SetLabel(
+			wxString::Format(_("%d KiB/s (%.2f MiB/s)"), capacity, capacity / 1024.0));
 	}
 
 private:
@@ -122,6 +135,7 @@ private:
 	wxSpinCtrl *m_capacity;
 	wxCheckBox *m_enabled;
 	wxStaticText *m_equivalent;
+	wxStaticText *m_capacityEquivalent;
 	int m_lastLimit;
 };
 
@@ -130,6 +144,15 @@ inline void SyncBandwidthLimitSliders(wxWindow *window)
 	for (const int id : { IDC_DOWNLOAD_LIMIT_SLIDER, IDC_UPLOAD_LIMIT_SLIDER }) {
 		if (auto *slider = dynamic_cast<BandwidthLimitSlider *>(window->FindWindow(id))) {
 			slider->Sync();
+		}
+	}
+}
+
+inline void InitializeBandwidthLimitSliders(wxWindow *window)
+{
+	for (const int id : { IDC_DOWNLOAD_LIMIT_SLIDER, IDC_UPLOAD_LIMIT_SLIDER }) {
+		if (auto *slider = dynamic_cast<BandwidthLimitSlider *>(window->FindWindow(id))) {
+			slider->InitializeFromPreference();
 		}
 	}
 }

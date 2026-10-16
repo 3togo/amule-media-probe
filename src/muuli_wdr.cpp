@@ -1510,15 +1510,17 @@ wxSizer *PreferencesConnectionTab( wxWindow *parent, bool call_fit, bool set_siz
     wxStaticBox *capacityBox = new wxStaticBox( parent, wxID_ANY, _("Line capacities") );
     wxStaticBoxSizer *capacitySizer = new wxStaticBoxSizer( capacityBox, wxVERTICAL );
     wxFlexGridSizer *capacityGrid = new wxFlexGridSizer( 3, 5, 5 );
-    capacityGrid->AddGrowableCol( 0 );
+    capacityGrid->AddGrowableCol( 2 );
     capacityGrid->Add( new wxStaticText(capacityBox, wxID_ANY, _("Download")), wxSizerFlags().CenterVertical() );
     wxSpinCtrl *downloadCapacity = new wxSpinCtrl(capacityBox, IDC_DOWNLOAD_CAP, "12500", wxDefaultPosition, wxDefaultSize, 0, 3, 1000000, 12500);
     capacityGrid->Add( downloadCapacity, wxSizerFlags().CenterVertical() );
-    capacityGrid->Add( new wxStaticText(capacityBox, wxID_ANY, _("KiB/s")), wxSizerFlags().CenterVertical() );
+    wxStaticText *downloadCapacityEquivalent = new wxStaticText(capacityBox, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxST_NO_AUTORESIZE);
+    capacityGrid->Add( downloadCapacityEquivalent, wxSizerFlags().CenterVertical() );
     capacityGrid->Add( new wxStaticText(capacityBox, wxID_ANY, _("Upload")), wxSizerFlags().CenterVertical() );
     wxSpinCtrl *uploadCapacity = new wxSpinCtrl(capacityBox, IDC_UPLOAD_CAP, "2500", wxDefaultPosition, wxDefaultSize, 0, 3, 1000000, 2500);
     capacityGrid->Add( uploadCapacity, wxSizerFlags().CenterVertical() );
-    capacityGrid->Add( new wxStaticText(capacityBox, wxID_ANY, _("KiB/s")), wxSizerFlags().CenterVertical() );
+    wxStaticText *uploadCapacityEquivalent = new wxStaticText(capacityBox, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxST_NO_AUTORESIZE);
+    capacityGrid->Add( uploadCapacityEquivalent, wxSizerFlags().CenterVertical() );
     capacitySizer->Add( capacityGrid, wxSizerFlags().Expand() );
     item0->Add( capacitySizer, wxSizerFlags().Expand() );
 
@@ -1533,7 +1535,7 @@ wxSizer *PreferencesConnectionTab( wxWindow *parent, bool call_fit, bool set_siz
     wxStaticText *downloadEquivalent = new wxStaticText(limitBox, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxST_NO_AUTORESIZE);
     downloadRow->Add( downloadEquivalent, wxSizerFlags().CenterVertical() );
     limitSizer->Add( downloadRow, wxSizerFlags().Expand() );
-    limitSizer->Add( new BandwidthLimitSlider(limitBox, IDC_DOWNLOAD_LIMIT_SLIDER, downloadLimit, downloadCapacity, downloadEnabled, downloadEquivalent), wxSizerFlags().Expand() );
+    limitSizer->Add( new BandwidthLimitSlider(limitBox, IDC_DOWNLOAD_LIMIT_SLIDER, downloadLimit, downloadCapacity, downloadEnabled, downloadEquivalent, downloadCapacityEquivalent), wxSizerFlags().Expand() );
 
     wxFlexGridSizer *uploadRow = new wxFlexGridSizer( 3, 5, 5 );
     uploadRow->AddGrowableCol( 2 );
@@ -1544,7 +1546,7 @@ wxSizer *PreferencesConnectionTab( wxWindow *parent, bool call_fit, bool set_siz
     wxStaticText *uploadEquivalent = new wxStaticText(limitBox, wxID_ANY, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxST_NO_AUTORESIZE);
     uploadRow->Add( uploadEquivalent, wxSizerFlags().CenterVertical() );
     limitSizer->Add( uploadRow, wxSizerFlags().Expand().Border(wxTOP, 5) );
-    limitSizer->Add( new BandwidthLimitSlider(limitBox, IDC_UPLOAD_LIMIT_SLIDER, uploadLimit, uploadCapacity, uploadEnabled, uploadEquivalent), wxSizerFlags().Expand() );
+    limitSizer->Add( new BandwidthLimitSlider(limitBox, IDC_UPLOAD_LIMIT_SLIDER, uploadLimit, uploadCapacity, uploadEnabled, uploadEquivalent, uploadCapacityEquivalent), wxSizerFlags().Expand() );
 
     wxBoxSizer *slotRow = new wxBoxSizer( wxHORIZONTAL );
     slotRow->Add( new wxStaticText(limitBox, wxID_ANY, _("Slot Allocation")), wxSizerFlags().CenterVertical() );

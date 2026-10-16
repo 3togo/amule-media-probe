@@ -697,10 +697,6 @@ public:
 	/// exists, so anywhere later silently does nothing.
 	static void FollowSystemAppearance();
 
-	void BeginShutdownStatus();
-	void UpdateShutdownStatus(const wxString &status);
-	void FinishShutdownStatus();
-
 	/// Applies the stored tooltip delay, which wx keeps process-wide.
 	static void ApplyToolTipDelay();
 
@@ -710,9 +706,6 @@ public:
 	virtual int ShowAlert(wxString msg, wxString title, int flags);
 
 	void AddGuiLogLine(const wxString &line);
-
-private:
-	CShutdownStatus *m_shutdownStatus = nullptr;
 
 protected:
 	/// Log messages queued for the GUI while it cannot display them yet, i.e. until the dialog
@@ -759,7 +752,13 @@ class CamuleGuiApp : public CamuleApp, public CamuleGuiBase
 	virtual void MacOpenURL(const wxString &url);
 #endif
 
+	void BeginShutdownStatus();
+	void FinishShutdownStatus();
+	CShutdownStatus *m_shutdownStatus = nullptr;
+
 public:
+	void UpdateShutdownStatus(const wxString &status);
+
 	virtual int ShowAlert(wxString msg, wxString title, int flags);
 
 	void ShutDown(wxCloseEvent &evt);

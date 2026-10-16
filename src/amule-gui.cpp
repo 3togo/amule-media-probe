@@ -22,7 +22,9 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA
 //
 
+#ifndef CLIENT_GUI
 #include "ShutdownStatus.h"
+#endif
 #include "amule.h"                  // Interface declarations.
 #include "ProtocolHandlerManager.h" // Needed for ProtocolHandler_QueueSchemeLink
 
@@ -158,26 +160,6 @@ void CamuleGuiBase::FollowSystemAppearance()
 		AddDebugLogLineN(logStandard, "Could not follow the system light/dark appearance");
 	}
 #endif
-}
-
-void CamuleGuiBase::BeginShutdownStatus()
-{
-	if (!m_shutdownStatus) {
-		m_shutdownStatus = new CShutdownStatus();
-	}
-}
-
-void CamuleGuiBase::UpdateShutdownStatus(const wxString &status)
-{
-	if (m_shutdownStatus) {
-		m_shutdownStatus->SetStatus(status);
-	}
-}
-
-void CamuleGuiBase::FinishShutdownStatus()
-{
-	delete m_shutdownStatus;
-	m_shutdownStatus = nullptr;
 }
 
 void CamuleGuiBase::ApplyToolTipDelay()
@@ -358,6 +340,26 @@ int CamuleGuiApp::OnExit()
 	return CamuleApp::OnExit();
 }
 
+void CamuleGuiApp::BeginShutdownStatus()
+{
+	if (!m_shutdownStatus) {
+		m_shutdownStatus = new CShutdownStatus();
+	}
+}
+
+void CamuleGuiApp::UpdateShutdownStatus(const wxString &status)
+{
+	if (m_shutdownStatus) {
+		m_shutdownStatus->SetStatus(status);
+	}
+}
+
+void CamuleGuiApp::FinishShutdownStatus()
+{
+	delete m_shutdownStatus;
+	m_shutdownStatus = nullptr;
+}
+
 void CamuleGuiApp::ShutDown(wxCloseEvent &WXUNUSED(evt))
 {
 	// The tray icon's Exit runs its own menu-tracking loop and stays live while a modal dialog
@@ -379,7 +381,9 @@ void CamuleGuiApp::ShutDown(wxCloseEvent &WXUNUSED(evt))
 	BeginShutdownStatus();
 	CamuleApp::ShutDown();
 	amuledlg->Destroy();
-	// The status window stays alive through OnExit's persistence and destructors.
+	// wx deletes top-level windows before OnExit; clear our pointer before leaving
+	// the main loop. Later persistence stages are reported to the log only.
+	FinishShutdownStatus();
 	ExitMainLoop();
 }
 

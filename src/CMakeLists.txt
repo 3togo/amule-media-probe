@@ -357,6 +357,9 @@ if (BUILD_MONOLITHIC)
 		CaptchaGenerator.cpp
 		PartFileConvert.cpp
 		PartFileConvertDlg.cpp
+		# Not in GUI_SOURCES: amulegui shares that list; startup and
+		# shutdown stages report local work only the monolithic build does.
+		SplashScreen.cpp
 	)
 
 	if (WIN32)

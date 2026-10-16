@@ -130,7 +130,6 @@ if (BUILD_MONOLITHIC OR BUILD_REMOTEGUI)
 		SearchListModel.cpp
 		ServerListCtrl.cpp
 		ServerWnd.cpp
-		SplashScreen.cpp
 		SharedDirsApplyTask.cpp
 		SharedFilePeersListCtrl.cpp
 		SharedFilesCtrl.cpp

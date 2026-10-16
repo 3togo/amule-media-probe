@@ -1,3 +1,27 @@
+//
+// This file is part of the aMule Project.
+//
+// Copyright (c) 2003-2026 aMule Team ( https://amule-org.github.io )
+//
+// Any parts of this program derived from the xMule, lMule or eMule project,
+// or contributed by third-party developers are copyrighted by their
+// respective authors.
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA
+//
+
 #ifndef AMULE_SHUTDOWN_STATUS_H
 #define AMULE_SHUTDOWN_STATUS_H
 
@@ -7,9 +31,10 @@
 #include <wx/evtloop.h>
 #include <wx/eventfilter.h>
 
-// Shutdown owns this window until all core cleanup is complete. Pump only paint
-// and layout events: timers, sockets, queued callbacks and user commands must
-// not reenter core objects while they are being destroyed.
+// Shutdown owns this window only while the main loop is alive. Restrict wx event
+// dispatch during repainting so handlers cannot reenter partially destroyed core
+// objects. Native sources calling an overridden wxTimer::Notify() directly can
+// still run; the event filter cannot intercept those callbacks.
 class CShutdownStatus : public CSplashScreen
 {
 public:
@@ -23,8 +48,8 @@ public:
 	{
 		RepaintFilter filter(this);
 		SetProgress(status, 0, true);
-		// OnExit may run after the main loop has stopped (including macOS session
-		// end). A temporary loop supplies the same restricted repaint there.
+		// Supply a temporary loop when repainting without an active loop.
+		// The owner must destroy this window before exiting the main loop.
 		if (auto *loop = wxEventLoopBase::GetActive()) {
 			loop->YieldFor(wxEVT_CATEGORY_UI);
 		} else {
@@ -37,8 +62,9 @@ public:
 
 private:
 	// GTK's nested native loop dispatches GLib timer sources even when YieldFor
-	// requests only UI events. Block every wx event outside this window while
-	// repainting, including those timers and events directed at the application.
+	// requests only UI events. Block wx event handlers outside this window while
+	// repainting, including normal timer events and application events. This does
+	// not block timer subclasses that override Notify() without sending an event.
 	class RepaintFilter : public wxEventFilter
 	{
 	public:

@@ -588,9 +588,6 @@ int CamuleApp::OnExit()
 	//   Windows (wxWebSessionWinHTTP): not observed to crash, but the same class of
 	//     cleanup-time race is plausible.
 
-#ifndef AMULE_DAEMON
-	theApp->FinishShutdownStatus();
-#endif
 	ReleaseSingleInstance();
 	std::_Exit(0);
 
@@ -3092,7 +3089,6 @@ void CamuleApp::ShutDown()
 	ReportShutdownStatus(_("Stopping network services..."));
 
 	// Stop ASIO thread
-	AddDebugLogLineN(logGeneral, "Terminate ASIO thread.");
 	m_AsioService->Stop();
 
 	StopKad();
@@ -3114,7 +3110,6 @@ void CamuleApp::ShutDown()
 	// Exit thread scheduler and upload thread
 	CThreadScheduler::Terminate();
 
-	AddDebugLogLineN(logGeneral, "Terminate upload thread.");
 	uploadBandwidthThrottler->EndThread();
 
 	ReportShutdownStatus(_("Closing connections..."));

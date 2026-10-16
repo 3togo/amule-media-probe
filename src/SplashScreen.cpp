@@ -213,25 +213,20 @@ void CSplashScreen::OnPaint(wxPaintEvent &WXUNUSED(evt))
 			size.x / 2,
 			barTop - FromDIP(18),
 			extent);
-		dc.SetTextForeground(wxColour(210, 210, 215));
-		DrawFittedText(dc, m_status, GetFont(), barWidth, size.x / 2, barTop + FromDIP(12), extent);
-		++m_paintCount;
-		m_paintMicros += (wxGetUTCTimeMillis() - started);
-		return;
-	}
+	} else {
+		// Trough, then fill. Drawn rather than delegated to wxGauge so the bar
+		// keeps these colours on a dark panel instead of the theme's.
+		dc.SetPen(wxPen(wxColour(90, 90, 95)));
+		dc.SetBrush(wxBrush(wxColour(30, 30, 33)));
+		dc.DrawRoundedRectangle(margin, barTop, barWidth, barHeight, barHeight / 2.0);
 
-	// Trough, then fill. Drawn rather than delegated to wxGauge so the bar
-	// keeps these colours on a dark panel instead of the theme's.
-	dc.SetPen(wxPen(wxColour(90, 90, 95)));
-	dc.SetBrush(wxBrush(wxColour(30, 30, 33)));
-	dc.DrawRoundedRectangle(margin, barTop, barWidth, barHeight, barHeight / 2.0);
-
-	const int clamped = std::min(100, std::max(0, m_percent));
-	const int fill = (barWidth * clamped) / 100;
-	if (fill > 0) {
-		dc.SetPen(*wxTRANSPARENT_PEN);
-		dc.SetBrush(wxBrush(wxColour(232, 138, 40))); // the mule's orange
-		dc.DrawRoundedRectangle(margin, barTop, fill, barHeight, barHeight / 2.0);
+		const int clamped = std::min(100, std::max(0, m_percent));
+		const int fill = (barWidth * clamped) / 100;
+		if (fill > 0) {
+			dc.SetPen(*wxTRANSPARENT_PEN);
+			dc.SetBrush(wxBrush(wxColour(232, 138, 40))); // the mule's orange
+			dc.DrawRoundedRectangle(margin, barTop, fill, barHeight, barHeight / 2.0);
+		}
 	}
 
 	dc.SetFont(GetFont());

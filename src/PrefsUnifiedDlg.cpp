@@ -1323,9 +1323,8 @@ void PrefsUnifiedDlg::OnOk(wxCommandEvent &WXUNUSED(event))
 	// never be sent to the daemon with the EC preferences.
 	if (auto *appearance = wxDynamicCast(FindWindow(IDC_APPEARANCE), wxChoice)) {
 		if (appearance->GetSelection() != wxNOT_FOUND) {
-			const auto choice =
-				static_cast<CamuleGuiBase::AppearanceChoice>(appearance->GetSelection());
-			wxConfigBase::Get()->Write("/GUI/Appearance", static_cast<long>(choice));
+			wxConfigBase::Get()->Write(
+				"/GUI/Appearance", static_cast<long>(appearance->GetSelection()));
 		}
 	}
 

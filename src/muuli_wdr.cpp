@@ -2199,7 +2199,6 @@ wxSizer *PreferencesGuiTweaksTab( wxWindow *parent, bool call_fit, bool set_size
         wxSizerFlags().Border(wxBOTTOM, 10));
 #endif
 
-
     wxBoxSizer *item1 = new wxBoxSizer( wxHORIZONTAL );
 
     wxStaticText *item2 = new wxStaticText( parent, -1, _("Skin to use: "), wxDefaultPosition, wxDefaultSize, 0 );

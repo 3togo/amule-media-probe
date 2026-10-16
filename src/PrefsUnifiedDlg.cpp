@@ -757,8 +757,13 @@ bool PrefsUnifiedDlg::TransferToWindow()
 #endif
 
 	if (auto *appearance = wxDynamicCast(FindWindow(IDC_APPEARANCE), wxChoice)) {
-		const long choice = wxConfigBase::Get()->ReadLong("/GUI/Appearance", 0);
-		appearance->SetSelection(choice >= 0 && choice <= 2 ? static_cast<int>(choice) : 0);
+		const long choice = wxConfigBase::Get()->ReadLong(
+			"/GUI/Appearance", static_cast<long>(CamuleGuiBase::AppearanceChoice::System));
+		const long first = static_cast<long>(CamuleGuiBase::AppearanceChoice::System);
+		const long last = static_cast<long>(CamuleGuiBase::AppearanceChoice::Dark);
+		appearance->SetSelection(choice >= first && choice <= last
+						 ? static_cast<int>(choice)
+						 : static_cast<int>(CamuleGuiBase::AppearanceChoice::System));
 	}
 
 	// Autostart checkbox: state lives in the OS, never aMule.conf, so read live
@@ -1317,7 +1322,11 @@ void PrefsUnifiedDlg::OnOk(wxCommandEvent &WXUNUSED(event))
 	// This belongs to the local GUI, including amulegui's remote.conf. It must
 	// never be sent to the daemon with the EC preferences.
 	if (auto *appearance = wxDynamicCast(FindWindow(IDC_APPEARANCE), wxChoice)) {
-		wxConfigBase::Get()->Write("/GUI/Appearance", appearance->GetSelection());
+		if (appearance->GetSelection() != wxNOT_FOUND) {
+			const auto choice =
+				static_cast<CamuleGuiBase::AppearanceChoice>(appearance->GetSelection());
+			wxConfigBase::Get()->Write("/GUI/Appearance", static_cast<long>(choice));
+		}
 	}
 
 	// save the preferences on ok

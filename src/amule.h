@@ -689,6 +689,14 @@ public:
 	bool CopyTextToClipboard(wxString strText);
 	void ResetTitle();
 
+	// Values persisted in /GUI/Appearance. Keep these stable for existing configs.
+	enum class AppearanceChoice
+	{
+		System = 0,
+		Light = 1,
+		Dark = 2
+	};
+
 	/// Apply the GUI-local appearance preference after opening the configuration and
 	/// before creating any windows (required by wxMSW).
 	static void ApplyConfiguredAppearance();

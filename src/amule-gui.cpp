@@ -150,10 +150,20 @@ int CamuleGuiBase::ShowAlert(wxString msg, wxString title, int flags)
 void CamuleGuiBase::ApplyConfiguredAppearance()
 {
 #if wxCHECK_VERSION(3, 3, 0)
-	const long choice = wxConfigBase::Get()->ReadLong("/GUI/Appearance", 0);
-	const wxApp::Appearance appearance = choice == 1   ? wxApp::Appearance::Light
-					     : choice == 2 ? wxApp::Appearance::Dark
-							   : wxApp::Appearance::System;
+	const auto choice = static_cast<AppearanceChoice>(wxConfigBase::Get()->ReadLong(
+		"/GUI/Appearance", static_cast<long>(AppearanceChoice::System)));
+	wxApp::Appearance appearance = wxApp::Appearance::System;
+	switch (choice) {
+	case AppearanceChoice::Light:
+		appearance = wxApp::Appearance::Light;
+		break;
+	case AppearanceChoice::Dark:
+		appearance = wxApp::Appearance::Dark;
+		break;
+	case AppearanceChoice::System:
+	default:
+		break;
+	}
 #ifndef __WXMSW__
 	// GTK/macOS already follow the desktop. Explicitly setting System on macOS
 	// pins the current appearance instead of following subsequent desktop changes.

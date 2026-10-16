@@ -37,6 +37,7 @@
 // Include private header
 #include "muuli_wdr.h"
 
+#include "amule.h" // CamuleGuiBase::AppearanceChoice values for the appearance selector
 #include "amuleDlg.h" // Needed for CLIENT_SKIN_SIZE (clientImages' artIds static_assert)
 #include "KadContactHistogram.h"
 #include "DialogLayout.h" // Scrollable details dialogs
@@ -2185,12 +2186,15 @@ wxSizer *PreferencesGuiTweaksTab( wxWindow *parent, bool call_fit, bool set_size
 {
     wxBoxSizer *item0 = new wxBoxSizer( wxVERTICAL );
 #if wxCHECK_VERSION(3, 3, 0)
-    item0->Add(new wxStaticText(parent, wxID_ANY, _("Appearance")), wxSizerFlags().Border(wxTOP, 5));
+    wxBoxSizer *appearanceRow = new wxBoxSizer(wxHORIZONTAL);
+    appearanceRow->Add(new wxStaticText(parent, wxID_ANY, _("Appearance: ")),
+        wxSizerFlags().CenterVertical().Right());
     auto *appearance = new wxChoice(parent, IDC_APPEARANCE);
-    appearance->Append(_("Follow system"));
-    appearance->Append(_("Light"));
-    appearance->Append(_("Dark"));
-    item0->Add(appearance, wxSizerFlags().Expand());
+    appearance->Insert(_("Follow system"), static_cast<unsigned int>(CamuleGuiBase::AppearanceChoice::System));
+    appearance->Insert(_("Light"), static_cast<unsigned int>(CamuleGuiBase::AppearanceChoice::Light));
+    appearance->Insert(_("Dark"), static_cast<unsigned int>(CamuleGuiBase::AppearanceChoice::Dark));
+    appearanceRow->Add(appearance, wxSizerFlags().Center().Border(wxLEFT|wxRIGHT, 0));
+    item0->Add(appearanceRow, wxSizerFlags().Expand().CenterVertical().Border(wxTOP|wxBOTTOM, 5));
     item0->Add(new wxStaticText(parent, wxID_ANY, _("Appearance changes take effect after restarting aMule.")),
         wxSizerFlags().Border(wxBOTTOM, 10));
 #endif

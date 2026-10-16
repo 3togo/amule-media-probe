@@ -205,6 +205,12 @@ def main():
         "ConfirmExit=0\nStartupMinimized=0\nEnableTrayIcon=0\nUPnPEnabled=0\n"
         "ConnectToED2K=0\nConnectToKad=0\nGeoIPEnabled=0\nGeoIPAutoUpdate=0\n"
         "IPFilterAutoLoad=0\n")
+    if SESSION == "x11":
+        # Openbox preserves a maximized window's size when a resize is requested.
+        # Start restored so the X11 case exercises an actual client resize.
+        with (config / "amule.conf").open("a") as file:
+            file.write("[Razor_Preferences]\nMaximized=0\nMAIN_X_SIZE=1200\n"
+                       "MAIN_Y_SIZE=860\nMAIN_X_POS=20\nMAIN_Y_POS=30\n")
     app = start("amule", ["flatpak", "run", *options, APP, "--config-dir=" + str(config)], app_env)
     if SESSION == "kde-wayland":
         window = wait_for("KWin nested window", lambda: run(
@@ -255,6 +261,9 @@ def main():
                    "w.move_resize_frame(false, 20, 20, 1024, 740); } true")
     else:
         run("xdotool", "windowsize", window, "1024", "740")
+        wait_for("resized X11 window/display", lambda:
+                 {"WIDTH=1024", "HEIGHT=740"}.issubset(set(
+                     run("xdotool", "getwindowgeometry", "--shell", window).splitlines())))
     time.sleep(1)
     capture("05-resized")
     key("ctrl+q")

@@ -3086,6 +3086,10 @@ void CamuleApp::ShutDown()
 	// Signal the hashing thread to terminate
 	m_app_state = APP_STATE_SHUTTINGDOWN;
 
+	// Native timers overriding Notify() bypass the splash event filter on GTK.
+	// Stop EC continuations before the first restricted repaint can dispatch them.
+	ECServerHandler->CancelNotificationDrains();
+
 	ReportShutdownStatus(_("Stopping network services..."));
 
 	// Stop ASIO thread

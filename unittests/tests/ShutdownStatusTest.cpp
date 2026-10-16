@@ -3,6 +3,7 @@
 #include <wx/wx.h>
 
 #include "InternalEvents.h"
+#include "ECNotificationDrain.h"
 #include "ShutdownStatus.h"
 #include "CamuleArtProvider.h"
 
@@ -41,6 +42,7 @@ int main(int argc, char **argv)
 		bool internalRan = false;
 		bool callbackRan = false;
 		bool timerRan = false;
+		bool notificationRan = false;
 		bool checked = false;
 		const wxEventTypeTag<CMuleInternalEvent> internalType(wxNewEventType());
 		wxTheApp->Bind(internalType, [&](CMuleInternalEvent &) { internalRan = true; });
@@ -78,14 +80,24 @@ int main(int argc, char **argv)
 					});
 					wxQueueEvent(wxTheApp, new CMuleInternalEvent(internalType));
 					wxTheApp->CallAfter([&] { callbackRan = true; });
+					CECNotificationTimer notifications;
+					Require(notifications.Schedule([&] { notificationRan = true; }),
+						"Could not arm the EC notification timer");
 					background.StartOnce(1);
 					wxMilliSleep(
 						20); // Make the GLib/native timer ready before repainting.
+					// Shutdown must cancel Notify() overrides before repainting;
+					// those native callbacks bypass the wx event filter.
+					notifications.Cancel();
 					for (int i = 0; i < 100 && paints == 0; ++i) {
 						status.SetStatus("Saving downloads...");
 						wxMilliSleep(5);
 					}
 					Require(paints > 0, "Shutdown window did not repaint");
+					Require(!notificationRan,
+						"EC continuation ran during shutdown repaint");
+					Require(!notifications.IsRunning(),
+						"EC notification timer was not stopped");
 					Require(!timerRan, "Native timer ran during shutdown repaint");
 					Require(!internalRan, "Core event ran during shutdown repaint");
 					Require(!callbackRan, "Queued callback ran during shutdown repaint");

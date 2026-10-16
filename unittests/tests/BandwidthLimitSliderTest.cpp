@@ -144,6 +144,13 @@ void TestLimitControl()
 			downloadEquivalent->GetTextExtent(downloadEquivalent->GetLabel()).x,
 		"The maximum value must fit the reserved label width");
 
+	downloadEnabled->SetValue(false);
+	downloadEnabled->GetEventHandler()->ProcessEvent(disable);
+	downloadEnabled->SetValue(true);
+	downloadEnabled->GetEventHandler()->ProcessEvent(enable);
+	Check(downloadLimit->GetValue() == 1000000 && downloadSlider->GetValue() == 80000,
+		"Toggling a limit above capacity must restore the exact saved value");
+
 	auto [uploadCapacity, uploadLimit, uploadEnabled, uploadEquivalent, uploadSlider] = makeControl(
 		IDC_UPLOAD_CAP, IDC_MAXUP, IDC_UPLOAD_LIMIT_ENABLED, IDC_UPLOAD_LIMIT_SLIDER, 2500, 0);
 	SyncBandwidthLimitSliders(&dialog);

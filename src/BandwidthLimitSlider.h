@@ -67,7 +67,8 @@ public:
 		});
 		enabled->Bind(wxEVT_CHECKBOX, [this](wxCommandEvent &event) {
 			if (event.IsChecked()) {
-				m_limit->SetValue(std::min(m_lastLimit, m_capacity->GetValue()));
+				// A saved or typed limit may exceed capacity; only the slider is clamped.
+				m_limit->SetValue(m_lastLimit);
 			} else {
 				m_limit->SetValue(0);
 			}

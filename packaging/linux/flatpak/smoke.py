@@ -134,6 +134,23 @@ def capture(name):
 
 def main():
     assert SESSION in {"x11", "gnome-wayland", "kde-wayland"}
+    host = os.environ.copy()
+    runtime = OUT / "runtime"
+    runtime.mkdir(mode=0o700)
+    host["XDG_RUNTIME_DIR"] = str(runtime)
+    host.pop("WAYLAND_DISPLAY", None)
+    host.pop("DISPLAY", None)
+    host.update(LIBGL_ALWAYS_SOFTWARE="1", GALLIUM_DRIVER="llvmpipe",
+                GSETTINGS_BACKEND="memory", XDG_CONFIG_HOME=str(OUT / "host-config"),
+                XDG_SESSION_TYPE="x11" if SESSION == "x11" else "wayland",
+                XDG_CURRENT_DESKTOP={"x11": "OPENBOX", "gnome-wayland": "GNOME",
+                                     "kde-wayland": "KDE"}[SESSION])
+    os.environ["XDG_RUNTIME_DIR"] = str(runtime)
+    # Helpers activated on this private bus must use the test session's runtime,
+    # rather than the environment inherited when dbus-run-session started.
+    run("dbus-update-activation-environment", *(f"{key}={host[key]}" for key in
+        ["XDG_RUNTIME_DIR", "XDG_CONFIG_HOME", "XDG_SESSION_TYPE", "XDG_CURRENT_DESKTOP", "GSETTINGS_BACKEND"]))
+
     permissions = run("flatpak", "info", "--user", "--show-permissions", APP)
     (OUT / "permissions.ini").write_text(permissions + "\n")
     metadata = configparser.ConfigParser()
@@ -143,18 +160,7 @@ def main():
     # No --nodevice override: check the actual installed manifest and sandbox.
     run("flatpak", "run", "--command=sh", APP, "-c", "test ! -e /dev/dri")
 
-    host = os.environ.copy()
-    runtime = OUT / "runtime"
-    runtime.mkdir(mode=0o700)
-    host["XDG_RUNTIME_DIR"] = str(runtime)
-    host.pop("WAYLAND_DISPLAY", None)
-    host.pop("DISPLAY", None)
-    host.update(LIBGL_ALWAYS_SOFTWARE="1", GALLIUM_DRIVER="llvmpipe",
-                GSETTINGS_BACKEND="memory", XDG_CONFIG_HOME=str(OUT / "host-config"))
-    os.environ["XDG_RUNTIME_DIR"] = str(runtime)
-
     if SESSION == "gnome-wayland":
-        host.update(XDG_SESSION_TYPE="wayland", XDG_CURRENT_DESKTOP="GNOME")
         start("compositor", ["gnome-shell", "--wayland", "--headless", "--no-x11",
                              "--wayland-display=smoke-0", "--virtual-monitor=1280x960",
                              "--unsafe-mode"], host)
@@ -170,8 +176,7 @@ def main():
         start("xvfb", ["Xvfb", ":99", "-screen", "0", "1280x960x24", "-nolisten", "tcp"], host)
         wait_for("Xvfb", lambda: run("xdpyinfo", env=host))
         if SESSION == "kde-wayland":
-            host.update(XDG_SESSION_TYPE="wayland", XDG_CURRENT_DESKTOP="KDE",
-                        QT_QPA_PLATFORM="xcb")
+            host["QT_QPA_PLATFORM"] = "xcb"
             start("compositor", ["kwin_wayland", "--x11-display=:99", "--width=1280",
                                  "--height=960", "--socket=smoke-0", "--no-lockscreen"], host)
         else:
@@ -190,7 +195,8 @@ def main():
     else:
         app_env["DISPLAY"] = ":99"
         options = ["--env=GDK_BACKEND=x11"]
-    app_env.update(LANG="C.UTF-8", LC_ALL="C.UTF-8")
+    app_env.update(LANG="C.UTF-8", LC_ALL="C.UTF-8", XDG_SESSION_TYPE=host["XDG_SESSION_TYPE"],
+                   XDG_CURRENT_DESKTOP=host["XDG_CURRENT_DESKTOP"])
 
     config = OUT / "config"
     config.mkdir()

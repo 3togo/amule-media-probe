@@ -3927,7 +3927,7 @@ msgstr ""
 msgid "KiB/s"
 msgstr ""
 
-#: src/MuleTrayIcon.cpp
+#: src/MuleTrayIcon.cpp src/BandwidthLimitSlider.h
 msgid "Unlimited"
 msgstr ""
 
@@ -4797,7 +4797,7 @@ msgid "Video Player"
 msgstr ""
 
 #: src/muuli_wdr.cpp
-msgid "Bandwidth limits"
+msgid "Line capacities"
 msgstr ""
 
 #: src/muuli_wdr.cpp
@@ -4805,15 +4805,19 @@ msgid "Upload"
 msgstr ""
 
 #: src/muuli_wdr.cpp
+msgid "Bandwidth limits"
+msgstr ""
+
+#: src/muuli_wdr.cpp
+msgid "Enable download limit"
+msgstr ""
+
+#: src/muuli_wdr.cpp
+msgid "Enable upload limit"
+msgstr ""
+
+#: src/muuli_wdr.cpp
 msgid "Slot Allocation"
-msgstr ""
-
-#: src/muuli_wdr.cpp
-msgid "Download limit (KiB/s)"
-msgstr ""
-
-#: src/muuli_wdr.cpp
-msgid "Upload limit (KiB/s)"
 msgstr ""
 
 #: src/muuli_wdr.cpp
@@ -5172,14 +5176,6 @@ msgstr ""
 
 #: src/muuli_wdr.cpp
 msgid "Connections Graph Scale: 100 "
-msgstr ""
-
-#: src/muuli_wdr.cpp
-msgid "Download graph scale:"
-msgstr ""
-
-#: src/muuli_wdr.cpp
-msgid "Upload graph scale:"
 msgstr ""
 
 #: src/muuli_wdr.cpp
@@ -6451,6 +6447,15 @@ msgstr ""
 #: src/Preferences.cpp
 #, c-format
 msgid "Default port will be used (%d)"
+msgstr ""
+
+#: src/BandwidthLimitSlider.h
+msgid "Adjust the enabled limit from 1 KiB/s to line capacity."
+msgstr ""
+
+#: src/BandwidthLimitSlider.h
+#, c-format
+msgid "%d KiB/s (%.2f MiB/s)"
 msgstr ""
 
 #: src/PrefsUnifiedDlg.cpp src/Statistics.cpp
@@ -9728,8 +9733,4 @@ msgstr ""
 
 #: src/kademlia/kademlia/Indexed.cpp
 msgid "Kad could not save an index. The previous copy of that file was preserved."
-msgstr ""
-
-#: src/BandwidthLimitSlider.h
-msgid "Bandwidth limit in KiB/s (0 means unlimited). Use the numeric field for larger values."
 msgstr ""

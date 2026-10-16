@@ -76,6 +76,7 @@ src/PartFileConvertDlg.cpp
 src/PartFile.cpp
 src/PeerCapabilities.h
 src/Preferences.cpp
+src/BandwidthLimitSlider.h
 src/PrefsUnifiedDlg.cpp
 src/SearchDlg.cpp
 src/SearchList.cpp
@@ -125,4 +126,3 @@ src/webserver/src/WebInterface.cpp
 src/webserver/src/WebServer.cpp
 packaging/windows/installer_strings.c
 src/kademlia/kademlia/Indexed.cpp
-src/BandwidthLimitSlider.h

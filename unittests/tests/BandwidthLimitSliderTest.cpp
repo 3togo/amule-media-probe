@@ -159,6 +159,12 @@ void TestLimitControl()
 	downloadEnabled->GetEventHandler()->ProcessEvent(enable);
 	Check(downloadLimit->GetValue() == 1000000 && downloadSlider->GetValue() == 81920,
 		"Toggling a limit above capacity must restore the exact saved value");
+	downloadLimit->SetValue(0);
+	InitializeBandwidthLimitSliders(&dialog);
+	downloadEnabled->SetValue(true);
+	downloadEnabled->GetEventHandler()->ProcessEvent(enable);
+	Check(downloadLimit->GetValue() == 81920 && downloadSlider->GetValue() == 81920,
+		"First download enable after loading unlimited must start at line capacity");
 
 	auto [uploadCapacity,
 		uploadLimit,

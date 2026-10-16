@@ -40,6 +40,11 @@ on:
         required: false
         type: string
         default: ''
+      flatpak_smoke:
+        description: Run X11 and GNOME/KDE Wayland GUI smoke tests (select only=flatpak).
+        required: false
+        type: boolean
+        default: false
   # Lets release.yml invoke this matrix as a reusable workflow on tag
   # pushes — same artifact set, no duplication of the build steps.
   workflow_call:
@@ -209,9 +214,7 @@ jobs:
         # Host glibc doesn't matter for Flatpak builds (output runs
         # inside the GNOME Platform sandbox), so bumping the runner
         # has no compat downside, unlike the AppImage matrix.
-        include:
-          - { arch: x86_64,  runs-on: ubuntu-24.04 }
-          - { arch: aarch64, runs-on: ubuntu-24.04-arm }
+        include: ${{ fromJSON(inputs.flatpak_smoke && '[{"arch":"x86_64","runs-on":"ubuntu-24.04"}]' || '[{"arch":"x86_64","runs-on":"ubuntu-24.04"},{"arch":"aarch64","runs-on":"ubuntu-24.04-arm"}]') }}
     runs-on: ${{ matrix.runs-on }}
     steps:
       - uses: actions/checkout@v7
@@ -269,6 +272,14 @@ jobs:
   # ------------------------------------------------------------------
   # macOS — native arm64 + x86_64 builds, then lipo-merge to Universal2
   # ------------------------------------------------------------------
+  flatpak-smoke:
+    needs: flatpak
+    if: github.event_name == 'workflow_dispatch' && inputs.flatpak_smoke
+    uses: ./.github/workflows/flatpak-smoke.yml
+    permissions:
+      contents: read
+      actions: read
+
   macos-build:
     name: macOS .app (${{ matrix.arch }})
     if: >-

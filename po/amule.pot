@@ -5295,11 +5295,11 @@ msgid "Follow system"
 msgstr ""
 
 #: src/muuli_wdr.cpp
-msgid "Light"
+msgid "Light mode"
 msgstr ""
 
 #: src/muuli_wdr.cpp
-msgid "Dark"
+msgid "Dark mode"
 msgstr ""
 
 #: src/muuli_wdr.cpp

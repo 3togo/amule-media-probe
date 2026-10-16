@@ -29,6 +29,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           BUILD_RUN_ID: ${{ inputs.build_run_id }}
         run: |
+          [[ "$BUILD_RUN_ID" =~ ^[0-9]+$ ]]
           mkdir -p "$RUNNER_TEMP/flatpak-smoke"
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN_ID" \
             --jq '{html_url, head_sha, head_branch}' \
@@ -67,7 +68,12 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: flatpak-smoke-${{ matrix.session }}
-          path: ${{ runner.temp }}/flatpak-smoke
+          path: |
+            ${{ runner.temp }}/flatpak-smoke/*.png
+            ${{ runner.temp }}/flatpak-smoke/*.log
+            ${{ runner.temp }}/flatpak-smoke/*.txt
+            ${{ runner.temp }}/flatpak-smoke/*.ini
+            ${{ runner.temp }}/flatpak-smoke/*.json
           if-no-files-found: warn
       - name: Record coverage
         if: always()

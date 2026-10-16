@@ -65,10 +65,20 @@ def shell_eval(expression):
 
 
 def gnome_windows():
-    return json.loads(shell_eval("JSON.stringify(global.get_window_actors().map(a => "
-                                 "({title:a.meta_window.get_title(), "
+    return json.loads(shell_eval("global.get_window_actors().map(a => "
+                                 "({title:a.meta_window.get_title() || '', "
                                  "wayland:a.meta_window.get_client_type() === "
-                                 "imports.gi.Meta.WindowClientType.WAYLAND})))"))
+                                 "imports.gi.Meta.WindowClientType.WAYLAND}))"))
+
+
+def focus_gnome(title):
+    shell_eval("Main.overview.hide(); global.get_window_actors().find(a => "
+               f"(a.meta_window.get_title() || '').includes({json.dumps(title)}))"
+               ".meta_window.activate(global.get_current_time()); true")
+    time.sleep(1)
+    # With no physical input, the startup overview can retain Clutter focus
+    # even after it is hidden. Release it so keys reach the Wayland client.
+    shell_eval("global.stage.set_key_focus(null); true")
 
 
 def title_seen(title):
@@ -76,9 +86,17 @@ def title_seen(title):
         return any(title in w["title"] and w["wayland"] for w in gnome_windows())
     if SESSION == "kde-wayland":
         # Native xdg_toplevel traffic proves the app did not fall back to Xwayland.
-        return re.search(r'set_title\("[^"\n]*' + re.escape(title),
-                         (OUT / "amule.log").read_text(errors="replace"))
-    return run("xdotool", "search", "--onlyvisible", "--name", title)
+        titles = {}
+        for match in re.finditer(r'xdg_toplevel[#@](\d+)\.(set_title\("([^"\n]*)"\)|destroy\(\))',
+                                 (OUT / "amule.log").read_text(errors="replace")):
+            if match[3] is not None:
+                titles[match[1]] = match[3]
+            else:
+                titles.pop(match[1], None)
+        return any(title in value for value in titles.values())
+    return subprocess.run(["xdotool", "search", "--onlyvisible", "--name", title],
+                          stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                          text=True, timeout=5).stdout.strip()
 
 
 def key(chord):
@@ -88,15 +106,18 @@ def key(chord):
         return
     # Mutter's virtual keyboard feeds native Wayland windows. XTest cannot.
     keysyms = {"alt": 0xffe9, "ctrl": 0xffe3, "Escape": 0xff1b,
-               "Page_Down": 0xff56, "Tab": 0xff09}
+               "Page_Down": 0xff56, "Tab": 0xff09, "Return": 0xff0d, "F4": 0xffc1}
     values = [keysyms.get(k, ord(k) if len(k) == 1 else 0) for k in chord.split("+")]
-    for state, sequence in [(1, values), (0, list(reversed(values)))]:
+    for state, sequence in [("PRESSED", values), ("RELEASED", list(reversed(values)))]:
         for value in sequence:
-            shell_eval(f"global.smokeKeyboard.notify_keyval(0, {value}, {state}); true")
+            shell_eval("global.smokeKeyboard.notify_keyval(imports.gi.GLib.get_monotonic_time(), "
+                       f"{value}, imports.gi.Clutter.KeyState.{state}); true")
     time.sleep(0.3)
 
 
 def capture(name):
+    # Let map/resize animations settle before recording review evidence.
+    time.sleep(1)
     path = OUT / f"{name}.png"
     if SESSION == "gnome-wayland":
         value = run("gdbus", "call", "--session", "--dest", "org.gnome.Shell.Screenshot",
@@ -176,17 +197,27 @@ def main():
     (config / "amule.conf").write_text(
         "[eMule]\nFirstRunWizardDone=1\nAutoconnect=0\nNewVersionCheck=0\n"
         "ConfirmExit=0\nStartupMinimized=0\nEnableTrayIcon=0\nUPnPEnabled=0\n"
-        "ConnectToED2K=0\nConnectToKad=0\n")
+        "ConnectToED2K=0\nConnectToKad=0\nGeoIPEnabled=0\nGeoIPAutoUpdate=0\n"
+        "IPFilterAutoLoad=0\n")
     app = start("amule", ["flatpak", "run", *options, APP, "--config-dir=" + str(config)], app_env)
+    if SESSION == "kde-wayland":
+        window = wait_for("KWin nested window", lambda: run(
+            "xdotool", "search", "--onlyvisible", "--pid", str(PROCESSES[1].pid))).splitlines()[-1]
+        run("xdotool", "windowfocus", window)
+    # A fresh configuration also shows a one-time version notice before the
+    # main frame exists. Dismiss only that expected dialog, not arbitrary errors.
+    first_window = wait_for("aMule startup", lambda: "info" if title_seen("^Info$" if SESSION == "x11" else "Info")
+                            else "main" if title_seen("aMule") else None)
+    if first_window == "info":
+        if SESSION == "gnome-wayland":
+            focus_gnome("Info")
+        capture("00-version-notice")
+        key("Return")
     wait_for("native aMule window", lambda: title_seen("aMule"))
     time.sleep(3)
     if SESSION == "gnome-wayland":
-        shell_eval("global.get_window_actors().find(a => a.meta_window.get_title().includes('aMule'))"
-                   ".meta_window.activate(0); true")
-    elif SESSION == "kde-wayland":
-        window = run("xdotool", "search", "--onlyvisible", "--pid", str(PROCESSES[1].pid)).splitlines()[-1]
-        run("xdotool", "windowfocus", window)
-    else:
+        focus_gnome("aMule")
+    elif SESSION == "x11":
         window = run("xdotool", "search", "--onlyvisible", "--class", "amule").splitlines()[-1]
         run("xdotool", "windowactivate", "--sync", window)
     capture("01-startup")
@@ -198,11 +229,17 @@ def main():
     capture("03-networks-scroll")
     key("alt+p")
     wait_for("Preferences dialog", lambda: title_seen("Preferences"))
-    capture("04-preferences")
-    key("Escape")
     if SESSION == "gnome-wayland":
-        shell_eval("global.get_window_actors().find(a => a.meta_window.get_title().includes('aMule'))"
-                   ".meta_window.move_resize_frame(false, 20, 20, 1024, 740); true")
+        focus_gnome("Preferences")
+    capture("04-preferences")
+    key("alt+F4")
+    wait_for("Preferences to close", lambda: not title_seen("Preferences"))
+    if SESSION == "gnome-wayland":
+        focus_gnome("aMule")
+        shell_eval("{ const w = global.get_window_actors().find(a => "
+                   "(a.meta_window.get_title() || '').includes('aMule')).meta_window; "
+                   "w.unmaximize(imports.gi.Meta.MaximizeFlags.BOTH); "
+                   "w.move_resize_frame(false, 20, 20, 1024, 740); } true")
     else:
         run("xdotool", "windowsize", window, "1024", "740")
     time.sleep(1)
@@ -218,6 +255,12 @@ def main():
 
 try:
     main()
+except Exception:
+    try:
+        capture("failure")
+    except Exception as error:
+        print(f"Could not capture failure screenshot: {error}", flush=True)
+    raise
 finally:
     for process in reversed(PROCESSES):
         if process.poll() is None:

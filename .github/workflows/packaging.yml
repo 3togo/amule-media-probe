@@ -275,9 +275,6 @@ jobs:
           path: dist/aMule-*-Linux-*.flatpak
           if-no-files-found: error
 
-  # ------------------------------------------------------------------
-  # macOS — native arm64 + x86_64 builds, then lipo-merge to Universal2
-  # ------------------------------------------------------------------
   flatpak-smoke:
     needs: flatpak
     if: >-
@@ -291,6 +288,9 @@ jobs:
       contents: read
       actions: read
 
+  # ------------------------------------------------------------------
+  # macOS — native arm64 + x86_64 builds, then lipo-merge to Universal2
+  # ------------------------------------------------------------------
   macos-build:
     name: macOS .app (${{ matrix.arch }})
     if: >-

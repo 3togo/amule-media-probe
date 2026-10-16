@@ -57,8 +57,8 @@ public:
 	{
 		SetName(limit->GetId() == IDC_MAXDOWN ? _("Download limit") : _("Upload limit"));
 		SetToolTip(_("Adjust the enabled limit from 1 KiB/s to line capacity."));
-		const wxSize maximum = m_equivalent->GetTextExtent(wxString::Format(
-			_("%d KiB/s (%.2f MiB/s)"), m_limit->GetMax(), m_limit->GetMax() / 1024.0));
+		const wxSize maximum = m_equivalent->GetTextExtent(
+			wxString::Format(_("KiB/s (%.2f MiB/s)"), m_limit->GetMax() / 1024.0));
 		wxSize minimum = m_equivalent->GetTextExtent(_("Unlimited"));
 		minimum.IncTo(maximum);
 		m_equivalent->SetMinSize(minimum);
@@ -73,12 +73,17 @@ public:
 				// A saved or typed limit may exceed capacity; only the slider is clamped.
 				m_limit->SetValue(m_lastLimit ? m_lastLimit : m_capacity->GetValue());
 			} else {
+				if (m_limit->GetValue() != 0) {
+					m_lastLimit = m_limit->GetValue();
+				}
 				m_limit->SetValue(0);
 			}
 			NotifyLimitChanged();
 		});
 		limit->Bind(wxEVT_TEXT, [this](wxCommandEvent &event) {
-			Sync();
+			Display(ParsePreview(m_limit, event.GetString()),
+				ParsePreview(m_capacity, m_capacity->GetTextValue()),
+				false);
 			event.Skip();
 		});
 		limit->Bind(wxEVT_SPINCTRL, [this](wxSpinEvent &event) {
@@ -86,7 +91,9 @@ public:
 			event.Skip();
 		});
 		capacity->Bind(wxEVT_TEXT, [this](wxCommandEvent &event) {
-			Sync();
+			Display(ParsePreview(m_limit, m_limit->GetTextValue()),
+				ParsePreview(m_capacity, event.GetString()),
+				false);
 			event.Skip();
 		});
 		capacity->Bind(wxEVT_SPINCTRL, [this](wxSpinEvent &event) {
@@ -103,25 +110,46 @@ public:
 		Sync();
 	}
 
-	void Sync()
+	void Sync() { Display(m_limit->GetValue(), m_capacity->GetValue(), true); }
+
+private:
+	static int ParsePreview(const wxSpinCtrl *control, const wxString &text)
 	{
-		const int value = m_limit->GetValue();
-		const int capacity = m_capacity->GetValue();
+		long long value;
+		if (text.ToLongLong(&value)) {
+			return static_cast<int>(std::max<long long>(
+				control->GetMin(), std::min<long long>(value, control->GetMax())));
+		}
+		// Empty or incomplete input previews the minimum. Clamp a numeric value
+		// too large for long long; leave other invalid text at the committed value.
+		const bool negative = text.StartsWith("-");
+		const wxString digits = negative || text.StartsWith("+") ? text.Mid(1) : text;
+		if (digits.empty()) {
+			return control->GetMin();
+		}
+		for (size_t i = 0; i < digits.length(); ++i) {
+			if (digits[i] < '0' || digits[i] > '9') {
+				return control->GetValue();
+			}
+		}
+		return negative ? control->GetMin() : control->GetMax();
+	}
+
+	void Display(int value, int capacity, bool committed)
+	{
 		SetRange(1, std::max(1, capacity));
 		SetValue(std::max(1, std::min(value, capacity)));
 		m_enabled->SetValue(value != 0);
 		Enable(value != 0);
-		if (value != 0) {
+		if (committed && value != 0) {
 			m_lastLimit = value;
 		}
-		m_equivalent->SetLabel(
-			value == 0 ? _("Unlimited")
-				   : wxString::Format(_("%d KiB/s (%.2f MiB/s)"), value, value / 1024.0));
-		m_capacityEquivalent->SetLabel(
-			wxString::Format(_("%d KiB/s (%.2f MiB/s)"), capacity, capacity / 1024.0));
+		m_equivalent->SetLabel(value == 0
+					       ? _("Unlimited")
+					       : wxString::Format(_("KiB/s (%.2f MiB/s)"), value / 1024.0));
+		m_capacityEquivalent->SetLabel(wxString::Format(_("KiB/s (%.2f MiB/s)"), capacity / 1024.0));
 	}
 
-private:
 	void NotifyLimitChanged()
 	{
 		wxSpinEvent changed(wxEVT_SPINCTRL, m_limit->GetId());

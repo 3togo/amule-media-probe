@@ -98,13 +98,38 @@ void TestLimitControl()
 	Check(downloadSlider->GetValue() == 51200 && downloadEnabled->GetValue(),
 		"Loaded limit must enable and position the slider");
 	Check(downloadEquivalent->GetLabel().Contains("50.00 MiB/s"), "MiB/s conversion is wrong");
+	Check(downloadEquivalent->GetLabel().StartsWith("KiB/s ("),
+		"Limit equivalent must not repeat the numeric field");
 	Check(downloadCapacityEquivalent->GetLabel().Contains("50.00 MiB/s"),
 		"Loaded capacity equivalent is wrong");
+	Check(downloadCapacityEquivalent->GetLabel().StartsWith("KiB/s ("),
+		"Capacity equivalent must not repeat the numeric field");
 	int notifiedValue = -1;
 	dialog.Bind(
 		wxEVT_SPINCTRL,
 		[&notifiedValue](wxSpinEvent &event) { notifiedValue = event.GetPosition(); },
 		IDC_MAXDOWN);
+	wxCommandEvent previewLimit(wxEVT_TEXT, downloadLimit->GetId());
+	previewLimit.SetEventObject(downloadLimit);
+	previewLimit.SetString("2048");
+	downloadLimit->GetEventHandler()->ProcessEvent(previewLimit);
+	Check(downloadLimit->GetValue() == 51200 && downloadSlider->GetValue() == 2048 &&
+			downloadEquivalent->GetLabel().Contains("2.00 MiB/s") && notifiedValue == -1,
+		"Typing a limit must preview it without committing or notifying the ratio handler");
+	downloadSlider->Sync();
+	wxCommandEvent previewCapacity(wxEVT_TEXT, downloadCapacity->GetId());
+	previewCapacity.SetEventObject(downloadCapacity);
+	previewCapacity.SetString("102400");
+	downloadCapacity->GetEventHandler()->ProcessEvent(previewCapacity);
+	Check(downloadCapacity->GetValue() == 51200 && downloadSlider->GetMax() == 102400 &&
+			downloadCapacityEquivalent->GetLabel().Contains("100.00 MiB/s"),
+		"Typing capacity must preview its slider range and equivalent without committing");
+	previewCapacity.SetString("2000000");
+	downloadCapacity->GetEventHandler()->ProcessEvent(previewCapacity);
+	Check(downloadCapacity->GetValue() == 51200 && downloadSlider->GetMax() == 1000000 &&
+			downloadCapacityEquivalent->GetLabel().Contains("976.56 MiB/s"),
+		"Typed capacity preview must clamp to the control maximum");
+	downloadSlider->Sync();
 
 	downloadSlider->SetValue(40000);
 	wxCommandEvent slide(wxEVT_SLIDER, downloadSlider->GetId());
@@ -135,6 +160,7 @@ void TestLimitControl()
 	downloadCapacity->SetValue(81920);
 	wxCommandEvent capacityChanged(wxEVT_TEXT, downloadCapacity->GetId());
 	capacityChanged.SetEventObject(downloadCapacity);
+	capacityChanged.SetString("81920");
 	downloadCapacity->GetEventHandler()->ProcessEvent(capacityChanged);
 	Check(downloadSlider->GetMax() == 81920 && downloadSlider->GetValue() == 40000,
 		"Changing capacity must update the range without moving the selected limit");
@@ -144,6 +170,7 @@ void TestLimitControl()
 	downloadLimit->SetValue(1000000);
 	wxCommandEvent limitTyped(wxEVT_TEXT, downloadLimit->GetId());
 	limitTyped.SetEventObject(downloadLimit);
+	limitTyped.SetString("1000000");
 	downloadLimit->GetEventHandler()->ProcessEvent(limitTyped);
 	Check(downloadSlider->GetMax() == 81920 && downloadSlider->GetValue() == 81920,
 		"A saved limit above capacity must not expand the slider range");
@@ -195,6 +222,24 @@ void TestLimitControl()
 	uploadEnabled->GetEventHandler()->ProcessEvent(enableUpload);
 	Check(uploadLimit->GetValue() == 2500 && uploadSlider->GetValue() == 2500,
 		"First enable after loading unlimited must start at line capacity");
+	wxCommandEvent previewUpload(wxEVT_TEXT, uploadLimit->GetId());
+	previewUpload.SetEventObject(uploadLimit);
+	previewUpload.SetString("1");
+	int uploadNotifications = 0;
+	dialog.Bind(
+		wxEVT_SPINCTRL, [&uploadNotifications](wxSpinEvent &) { ++uploadNotifications; }, IDC_MAXUP);
+	uploadLimit->GetEventHandler()->ProcessEvent(previewUpload);
+	Check(uploadLimit->GetValue() == 2500 && uploadSlider->GetValue() == 1 && uploadNotifications == 0,
+		"Typing an upload limit must preview it without committing or running the ratio check");
+	uploadEnabled->SetValue(false);
+	wxCommandEvent disableUpload(wxEVT_CHECKBOX, uploadEnabled->GetId());
+	disableUpload.SetInt(0);
+	disableUpload.SetEventObject(uploadEnabled);
+	uploadEnabled->GetEventHandler()->ProcessEvent(disableUpload);
+	uploadEnabled->SetValue(true);
+	uploadEnabled->GetEventHandler()->ProcessEvent(enableUpload);
+	Check(uploadLimit->GetValue() == 2500,
+		"An uncommitted text preview must not replace the last enabled limit");
 }
 } // namespace
 

@@ -6460,7 +6460,7 @@ msgstr ""
 
 #: src/BandwidthLimitSlider.h
 #, c-format
-msgid "%d KiB/s (%.2f MiB/s)"
+msgid "KiB/s (%.2f MiB/s)"
 msgstr ""
 
 #: src/PrefsUnifiedDlg.cpp

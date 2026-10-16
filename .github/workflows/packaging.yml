@@ -45,6 +45,11 @@ on:
         required: false
         type: boolean
         default: false
+      flatpak_smoke_run_id:
+        description: Optional Packaging run ID to reuse its x86_64 bundle instead of rebuilding.
+        required: false
+        type: string
+        default: ''
   # Lets release.yml invoke this matrix as a reusable workflow on tag
   # pushes — same artifact set, no duplication of the build steps.
   workflow_call:
@@ -199,9 +204,10 @@ jobs:
   flatpak:
     name: Flatpak (${{ matrix.arch }})
     if: >-
-      github.event_name != 'workflow_dispatch' ||
+      (github.event_name != 'workflow_dispatch' ||
       inputs.only == '' ||
-      contains(inputs.only, 'flatpak')
+      contains(inputs.only, 'flatpak')) &&
+      !(github.event_name == 'workflow_dispatch' && inputs.flatpak_smoke && inputs.flatpak_smoke_run_id != '')
     strategy:
       fail-fast: false
       matrix:
@@ -274,8 +280,13 @@ jobs:
   # ------------------------------------------------------------------
   flatpak-smoke:
     needs: flatpak
-    if: github.event_name == 'workflow_dispatch' && inputs.flatpak_smoke
+    if: >-
+      !cancelled() && github.event_name == 'workflow_dispatch' && inputs.flatpak_smoke &&
+      (needs.flatpak.result == 'success' ||
+       (needs.flatpak.result == 'skipped' && inputs.flatpak_smoke_run_id != ''))
     uses: ./.github/workflows/flatpak-smoke.yml
+    with:
+      build_run_id: ${{ inputs.flatpak_smoke_run_id || format('{0}', github.run_id) }}
     permissions:
       contents: read
       actions: read

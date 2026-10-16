@@ -4,6 +4,10 @@ name: Flatpak GUI smoke
 # All three sessions install the same x86_64 bundle built by that workflow.
 on:
   workflow_call:
+    inputs:
+      build_run_id:
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -20,10 +24,21 @@ jobs:
         session: [x11, gnome-wayland, kde-wayland]
     steps:
       - uses: actions/checkout@v7
+      - name: Record bundle provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RUN_ID: ${{ inputs.build_run_id }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/flatpak-smoke"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN_ID" \
+            --jq '{html_url, head_sha, head_branch}' \
+            | tee "$RUNNER_TEMP/flatpak-smoke/build.json"
       - uses: actions/download-artifact@v8
         with:
           name: flatpak-x86_64
           path: dist
+          run-id: ${{ inputs.build_run_id }}
+          github-token: ${{ github.token }}
       - name: Install desktop test tools
         env:
           SESSION: ${{ matrix.session }}

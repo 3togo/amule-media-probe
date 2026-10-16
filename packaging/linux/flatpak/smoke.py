@@ -128,7 +128,8 @@ def main():
     host["XDG_RUNTIME_DIR"] = str(runtime)
     host.pop("WAYLAND_DISPLAY", None)
     host.pop("DISPLAY", None)
-    host.update(LIBGL_ALWAYS_SOFTWARE="1", GALLIUM_DRIVER="llvmpipe")
+    host.update(LIBGL_ALWAYS_SOFTWARE="1", GALLIUM_DRIVER="llvmpipe",
+                GSETTINGS_BACKEND="memory", XDG_CONFIG_HOME=str(OUT / "host-config"))
     os.environ["XDG_RUNTIME_DIR"] = str(runtime)
 
     if SESSION == "gnome-wayland":

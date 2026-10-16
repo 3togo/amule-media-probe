@@ -352,12 +352,9 @@ int CamuleApp::OnExit()
 
 	ReportShutdownStatus(_("Saving window settings..."));
 
-	// Flush wx's pending-delete queue before tearing down wxConfig: CamuleGuiApp::ShutDown
-	// calls amuledlg->Destroy(), which is lazy. On the CMD+Q path the event loop drains
-	// that queue naturally before OnExit runs; on the macOS Dock right-click -> Quit path
-	// CamuleGuiApp::OnEndSession reaches OnExit directly, so without an explicit drain here
-	// the CamuleDlg destructor chain never runs against a live wxConfig, and whatever it
-	// still persists from there is silently lost.
+	// CamuleGuiApp::ShutDown calls OnExit directly with amuledlg->Destroy()
+	// still pending. Run the dialog destructor while wxConfig is still alive,
+	// before deleting the core objects that its controls may reference.
 	DeletePendingObjects();
 
 	// From the wxConfigBase docs: this object must be deleted, usually in wxApp::OnExit,
@@ -588,6 +585,11 @@ int CamuleApp::OnExit()
 	//   Windows (wxWebSessionWinHTTP): not observed to crash, but the same class of
 	//     cleanup-time race is plausible.
 
+#ifndef AMULE_DAEMON
+	// The monolithic GUI calls OnExit before leaving the main loop so the
+	// splash survives wx's top-level-window cleanup until persistence finishes.
+	theApp->FinishShutdownStatus();
+#endif
 	ReleaseSingleInstance();
 	std::_Exit(0);
 
@@ -3114,6 +3116,7 @@ void CamuleApp::ShutDown()
 	// Exit thread scheduler and upload thread
 	CThreadScheduler::Terminate();
 
+	AddDebugLogLineN(logGeneral, "Terminate upload thread.");
 	uploadBandwidthThrottler->EndThread();
 
 	ReportShutdownStatus(_("Closing connections..."));

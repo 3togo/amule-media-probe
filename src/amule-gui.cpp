@@ -356,8 +356,9 @@ void CamuleGuiApp::UpdateShutdownStatus(const wxString &status)
 
 void CamuleGuiApp::FinishShutdownStatus()
 {
-	delete m_shutdownStatus;
+	auto *status = m_shutdownStatus;
 	m_shutdownStatus = nullptr;
+	delete status;
 }
 
 void CamuleGuiApp::ShutDown(wxCloseEvent &WXUNUSED(evt))
@@ -381,10 +382,12 @@ void CamuleGuiApp::ShutDown(wxCloseEvent &WXUNUSED(evt))
 	BeginShutdownStatus();
 	CamuleApp::ShutDown();
 	amuledlg->Destroy();
-	// wx deletes top-level windows before OnExit; clear our pointer before leaving
-	// the main loop. Later persistence stages are reported to the log only.
-	FinishShutdownStatus();
-	ExitMainLoop();
+	// Drain callbacks (including deferred tray deletion) while the core is still
+	// alive, just as wx does when leaving the main loop. No repaint filter here.
+	ProcessPendingEvents();
+	// OnExit ends with std::_Exit(), so wx never reaches CallOnExit(), which
+	// would destroy the splash before the slow persistence stages can use it.
+	OnExit();
 }
 
 // macOS Dock right-click Quit bypasses OnClose. wx posts a session-end event for this path; drive
@@ -414,6 +417,11 @@ void CamuleGuiApp::OnEndSession(wxCloseEvent &evt)
 #ifdef __WXMAC__
 void CamuleGuiApp::MacReopenApp()
 {
+	// Cocoa calls this directly, bypassing the shutdown repaint event filter.
+	if (IsOnShutDown()) {
+		return;
+	}
+
 	// Fired when the user clicks the Dock icon with no visible top-level windows, and on a re-
 	// launch from Finder / Launchpad. Without this override wxApp's default Reopen handler is a
 	// no-op when the frame is hidden, so a window hidden via the close button (HideOnClose)

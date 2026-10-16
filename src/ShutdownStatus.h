@@ -31,9 +31,9 @@
 #include <wx/evtloop.h>
 #include <wx/eventfilter.h>
 
-// Shutdown owns this window only while the main loop is alive. Restrict wx event
-// dispatch during repainting so handlers cannot reenter partially destroyed core
-// objects. Native sources calling an overridden wxTimer::Notify() directly can
+// Shutdown owns this window through its explicit OnExit(), before wx can destroy
+// top-level windows in CallOnExit(). Restrict repaint dispatch around partially
+// destroyed core objects. Native sources calling an overridden wxTimer::Notify() directly can
 // still run; the event filter cannot intercept those callbacks.
 class CShutdownStatus : public CSplashScreen
 {
@@ -48,8 +48,8 @@ public:
 	{
 		RepaintFilter filter(this);
 		SetProgress(status, 0, true);
-		// Supply a temporary loop when repainting without an active loop.
-		// The owner must destroy this window before exiting the main loop.
+		// The owner calls OnExit directly and keeps the splash alive until cleanup
+		// finishes. Supply a temporary loop if no active event loop is available.
 		if (auto *loop = wxEventLoopBase::GetActive()) {
 			loop->YieldFor(wxEVT_CATEGORY_UI);
 		} else {
@@ -84,6 +84,16 @@ private:
 
 		int FilterEvent(wxEvent &event) override
 		{
+			// YieldFor can dispatch native quit/logoff requests even with a UI mask.
+			// Merely swallowing the query lets the OS proceed to CallOnExit(),
+			// destroying this window and reentering partially completed teardown.
+			if (event.GetEventType() == wxEVT_QUERY_END_SESSION) {
+				auto &query = static_cast<wxCloseEvent &>(event);
+				if (query.CanVeto()) {
+					query.Veto();
+				}
+				return Event_Processed;
+			}
 			for (auto *window = wxDynamicCast(event.GetEventObject(), wxWindow); window;
 				window = window->GetParent()) {
 				if (window == m_window) {

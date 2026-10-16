@@ -44,6 +44,12 @@ int main(int argc, char **argv)
 		bool timerRan = false;
 		bool notificationRan = false;
 		bool checked = false;
+		bool queryVetoed = false;
+		bool queryHandlerRan = false;
+		bool endSessionRan = false;
+		bool teardownCallbackRan = false;
+		wxTheApp->Bind(wxEVT_QUERY_END_SESSION, [&](wxCloseEvent &) { queryHandlerRan = true; });
+		wxTheApp->Bind(wxEVT_END_SESSION, [&](wxCloseEvent &) { endSessionRan = true; });
 		const wxEventTypeTag<CMuleInternalEvent> internalType(wxNewEventType());
 		wxTheApp->Bind(internalType, [&](CMuleInternalEvent &) { internalRan = true; });
 		{
@@ -73,6 +79,17 @@ int main(int argc, char **argv)
 					int paints = 0;
 					status.Bind(wxEVT_PAINT, [&](wxPaintEvent &event) {
 						++paints;
+						// Model a native quit arriving inside YieldFor, bypassing
+						// its event category mask. Swallowing a query without a
+						// veto would let Cocoa call OnExit inside teardown.
+						wxCloseEvent query(wxEVT_QUERY_END_SESSION);
+						query.SetEventObject(wxTheApp);
+						query.SetCanVeto(true);
+						wxTheApp->ProcessEvent(query);
+						queryVetoed = query.GetVeto();
+						wxCloseEvent endSession(wxEVT_END_SESSION);
+						endSession.SetEventObject(wxTheApp);
+						wxTheApp->ProcessEvent(endSession);
 						// Native loops can process pending wx events while yielding.
 						// Exercise that path on every port, including GTK.
 						wxTheApp->ProcessPendingEvents();
@@ -94,6 +111,9 @@ int main(int argc, char **argv)
 						wxMilliSleep(5);
 					}
 					Require(paints > 0, "Shutdown window did not repaint");
+					Require(queryVetoed, "Native session-end query was not vetoed");
+					Require(!queryHandlerRan && !endSessionRan,
+						"Session-end handler reentered shutdown");
 					Require(!notificationRan,
 						"EC continuation ran during shutdown repaint");
 					Require(!notifications.IsRunning(),
@@ -103,7 +123,17 @@ int main(int argc, char **argv)
 					Require(!callbackRan, "Queued callback ran during shutdown repaint");
 					Require(status.IsShown() && !status.Close(),
 						"Status window can be closed");
+					// Drain once without a filter before core teardown, then
+					// repaint later saves while callbacks remain suspended.
+					wxTheApp->ProcessPendingEvents();
+					Require(internalRan && callbackRan,
+						"Pre-teardown pending events were not drained");
+					wxTheApp->CallAfter([&] { teardownCallbackRan = true; });
+					status.SetStatus("Flushing download buffers...");
 					status.SetStatus("Finishing shutdown...");
+					Require(status.IsShown(),
+						"Splash closed before persistence finished");
+					Require(!teardownCallbackRan, "Callback ran during core teardown");
 				} catch (const std::exception &error) {
 					std::cerr << error.what() << '\n';
 					result = 1;
@@ -119,9 +149,10 @@ int main(int argc, char **argv)
 			}
 			// Pending core events and callbacks remain available after repainting.
 			wxTheApp->ProcessPendingEvents();
-			if (!internalRan || !callbackRan) {
+			if (!internalRan || !callbackRan || !teardownCallbackRan) {
 				std::cerr << "Pending events were lost: core=" << internalRan
-					  << ", callback=" << callbackRan << '\n';
+					  << ", callback=" << callbackRan
+					  << ", teardown=" << teardownCallbackRan << '\n';
 				result = 1;
 			}
 			wxTheApp->SetTopWindow(nullptr);

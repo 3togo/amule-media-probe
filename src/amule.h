@@ -753,11 +753,11 @@ class CamuleGuiApp : public CamuleApp, public CamuleGuiBase
 #endif
 
 	void BeginShutdownStatus();
-	void FinishShutdownStatus();
 	CShutdownStatus *m_shutdownStatus = nullptr;
 
 public:
 	void UpdateShutdownStatus(const wxString &status);
+	void FinishShutdownStatus();
 
 	virtual int ShowAlert(wxString msg, wxString title, int flags);
 

@@ -238,7 +238,14 @@ def main():
     if SESSION == "gnome-wayland":
         focus_gnome("Preferences")
     capture("04-preferences")
-    key("alt+F4")
+    if SESSION == "gnome-wayland":
+        # Bare Shell sessions do not necessarily have the distribution's
+        # Alt+F4 binding. Use Mutter's normal window-close request instead.
+        shell_eval("global.get_window_actors().find(a => "
+                   "a.meta_window.get_title() === 'Preferences').meta_window"
+                   ".delete(global.get_current_time()); true")
+    else:
+        key("alt+F4")
     wait_for("Preferences to close", lambda: not title_seen("Preferences"))
     if SESSION == "gnome-wayland":
         focus_gnome("aMule")

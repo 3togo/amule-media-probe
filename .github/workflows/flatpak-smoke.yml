@@ -13,6 +13,10 @@ permissions:
   contents: read
   actions: read
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   desktop:
     name: ${{ matrix.session }} (software rendering)
@@ -63,6 +67,7 @@ jobs:
           dpkg-query -W flatpak gnome-shell kwin-wayland xvfb > "$RESULTS/packages.txt" 2>&1 || true
           timeout 180s dbus-run-session -- python3 packaging/linux/flatpak/smoke.py \
             "$SESSION" "$RESULTS" 2>&1 | tee "$RESULTS/driver.log"
+          test -s "$RESULTS/result.txt"
       - name: Upload screenshots and diagnostics
         if: always()
         uses: actions/upload-artifact@v7

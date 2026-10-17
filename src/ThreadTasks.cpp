@@ -528,9 +528,10 @@ bool CAICHSyncTask::ConvertToKnown2ToKnown264()
 ////////////////////////////////////////////////////////////
 // CVerifyLocalDataTask
 
-CVerifyLocalDataTask::CVerifyLocalDataTask(const CKnownFile *file, ETaskPriority priority)
-: CThreadTask("VerifyLocalData", file->GetFileHash().Encode(), priority)
+CVerifyLocalDataTask::CVerifyLocalDataTask(const CKnownFile *file, Mode mode)
+: CThreadTask("VerifyLocalData", file->GetFileHash().Encode(), mode == Mode::Automatic ? ETP_Low : ETP_High)
 , m_fileID(file->GetFileHash())
+, m_mode(mode)
 , m_owner(file)
 , m_fullPath(file->GetFilePath().JoinPaths(file->GetFileName()))
 , m_fileSize(file->GetFileSize())
@@ -552,6 +553,10 @@ bool CVerifyLocalDataTask::OwnerStillShared() const
 void CVerifyLocalDataTask::PrintReport(
 	const CPath &fullPath, const bool checkedAICH, const CVerifyLocalDataResult &result)
 {
+	// Automatic successes are visible in file details without filling the user's log.
+	if (m_mode == Mode::Automatic && !result.IsCorrupt()) {
+		return;
+	}
 
 	std::string scope = checkedAICH ? "MD4 & AICH" : "MD4";
 

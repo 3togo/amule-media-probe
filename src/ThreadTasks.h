@@ -146,7 +146,13 @@ private:
 class CVerifyLocalDataTask : public CThreadTask
 {
 public:
-	explicit CVerifyLocalDataTask(const CKnownFile *file, ETaskPriority priority = ETP_High);
+	enum class Mode
+	{
+		Manual,
+		Automatic
+	};
+
+	explicit CVerifyLocalDataTask(const CKnownFile *file, Mode mode = Mode::Manual);
 
 protected:
 	/** See CThreadTask::Entry */
@@ -162,6 +168,7 @@ private:
 	// m_owner is only dereferenced after this confirms it is still shared.
 	bool OwnerStillShared() const;
 
+	const Mode m_mode;
 	const CKnownFile *m_owner;
 	CPath m_fullPath;
 	uint64 m_fileSize;

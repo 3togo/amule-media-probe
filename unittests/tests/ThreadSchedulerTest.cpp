@@ -76,8 +76,12 @@ private:
 class COrderedTask : public CThreadTask
 {
 public:
-	COrderedTask(std::vector<int> &order, wxSemaphore &done, int value, ETaskPriority priority)
-	: CThreadTask("Order", wxString::Format("%d", value), priority)
+	COrderedTask(std::vector<int> &order,
+		wxSemaphore &done,
+		int value,
+		ETaskPriority priority,
+		const wxString &description = wxEmptyString)
+	: CThreadTask("Order", description.IsEmpty() ? wxString::Format("%d", value) : description, priority)
 	, m_order(order)
 	, m_done(done)
 	, m_value(value)
@@ -146,13 +150,20 @@ TEST(ThreadScheduler, QueueOwnershipAndTypeLimitsAcrossSchedulerLifecycle)
 	ASSERT_TRUE(CThreadScheduler::HasTaskOfType("Running"));
 	const bool queued = CThreadScheduler::AddTaskIfNoneOfType(new CCountedTask("other", "Running"));
 	ASSERT_FALSE(queued);
+	// A manual Verify replaces an automatic check of the same file while the worker is
+	// busy. Its high priority and manual reporting metadata (value 4) must both survive.
+	ASSERT_TRUE(CThreadScheduler::AddTask(new COrderedTask(order, done, 3, ETP_Low, "verify-file")));
+	ASSERT_TRUE(
+		CThreadScheduler::AddTask(new COrderedTask(order, done, 4, ETP_High, "verify-file"), true));
+	ASSERT_EQUALS(static_cast<size_t>(1), CThreadScheduler::GetPendingCount("Order"));
 	// New normal-priority hashing must pass an older opportunistic low-priority check.
 	ASSERT_TRUE(CThreadScheduler::AddTask(new COrderedTask(order, done, 1, ETP_Low)));
 	ASSERT_TRUE(CThreadScheduler::AddTask(new COrderedTask(order, done, 2, ETP_Normal)));
 	release.Post();
 	ASSERT_EQUALS(wxSEMA_NO_ERROR, done.WaitTimeout(5000));
 	ASSERT_EQUALS(wxSEMA_NO_ERROR, done.WaitTimeout(5000));
-	ASSERT_TRUE((order == std::vector<int>{ 2, 1 }));
+	ASSERT_EQUALS(wxSEMA_NO_ERROR, done.WaitTimeout(5000));
+	ASSERT_TRUE((order == std::vector<int>{ 4, 2, 1 }));
 
 	CThreadScheduler::Terminate();
 	ASSERT_EQUALS(0, s_liveTasks);

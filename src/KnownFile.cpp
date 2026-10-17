@@ -411,7 +411,9 @@ void CKnownFile::VerifyLocalData() const
 			    GetFileName());
 		return;
 	}
-	CThreadScheduler::AddTask(new CVerifyLocalDataTask(this));
+	// Replace a queued automatic check so this explicit request runs at high priority
+	// and reports success. A running duplicate is stopped and restarted as manual too.
+	CThreadScheduler::AddTask(new CVerifyLocalDataTask(this), true);
 }
 
 // Live upload activity summarised from m_ClientUploadList (issue #466). Core-only: the list is
@@ -441,7 +443,8 @@ void CKnownFile::MaybeScheduleVerification()
 	// Avoid even constructing a snapshot on every request while another check is pending.
 	// AddTaskIfNoneOfType rechecks under the scheduler lock before taking ownership.
 	if (!CThreadScheduler::HasTaskOfType("VerifyLocalData") &&
-		CThreadScheduler::AddTaskIfNoneOfType(new CVerifyLocalDataTask(this, ETP_Low))) {
+		CThreadScheduler::AddTaskIfNoneOfType(
+			new CVerifyLocalDataTask(this, CVerifyLocalDataTask::Mode::Automatic))) {
 		m_autoVerifySchedule.OnQueued(uptime);
 	}
 }

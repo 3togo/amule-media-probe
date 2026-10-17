@@ -42,10 +42,11 @@
 #include "RLE.h" // Needed for RLE_Data, PartFileEncoderData
 #endif
 
-#include "Constants.h" // Needed for PS_*, PR_*
-#include "ClientRef.h" // Needed for CClientRef
-#include "SharedFileVerifySchedule.h"
+#include "Constants.h"             // Needed for PS_*, PR_*
+#include "ClientRef.h"             // Needed for CClientRef
 #include "VerifyLocalDataResult.h" // Needed for CVerifyLocalDataResult
+
+#include "SharedFileVerifySchedule.h" // Needed for CSharedFileVerifySchedule
 
 class CFileDataIO;
 class CMemFile;

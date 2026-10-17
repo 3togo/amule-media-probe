@@ -212,7 +212,8 @@ def run(binary, root):
             receive(sock, fallback_hash, fallback_content, 0)
             wait(proc, 'MD4-only result', lambda: date(records(ec)['fallback.bin']))
         text = (root / 'logfile').read_text(errors='replace')
-        assert 'Verify Local Data (MD4): Result OK' in text, text
+        assert 'Result OK' not in text, 'automatic success unexpectedly logged'
+        assert not corrupt(records(ec)['fallback.bin']), 'MD4 fallback reported corruption'
         aich_path.write_bytes(aich_data)
         assert len(reports(root)) == 1, 'the same-session check was repeated'
 
@@ -231,6 +232,13 @@ def run(binary, root):
         assert not date(records(ec)['unrequested.bin'])
         assert reports(root) == reports_before, 'recent persisted check was repeated'
 
+        print("Checking manual failure reporting", flush=True)
+        previous_reports = len(reports(root))
+        assert ec.call(C['EC_OP_VERIFY_LOCAL_DATA'],
+                       [tag(C['EC_TAG_KNOWNFILE'], file_hash, 9)])[0] == C['EC_OP_NOOP']
+        wait(proc, 'manual failure report', lambda: len(reports(root)) > previous_reports)
+        assert 'ERRORS FOUND!' in reports(root)[-1], 'manual corruption report was suppressed'
+
         print("Checking manual verification after repair", flush=True)
         # Manual verification remains available inside the automatic interval and clears
         # withholding after the original bytes have been restored.
@@ -241,6 +249,7 @@ def run(binary, root):
                        [tag(C['EC_TAG_KNOWNFILE'], file_hash, 9)])[0] == C['EC_OP_NOOP']
         wait(proc, 'manual repair verification',
              lambda: not corrupt(records(ec)['damaged.bin']))
+        assert any('Result OK' in line for line in reports(root)), 'manual success was not logged'
         with peer(port, file_hash, 8) as sock:
             request(sock, file_hash, 0)
             receive(sock, file_hash, content, 0)

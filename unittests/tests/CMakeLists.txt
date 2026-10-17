@@ -187,6 +187,16 @@ add_test (NAME DeadSourceKeyTest COMMAND DeadSourceKeyTest)
 target_include_directories (DeadSourceKeyTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries (DeadSourceKeyTest muleunit mulecommon)
 
+add_executable (ChatStateTest ChatStateTest.cpp)
+add_test (NAME ChatStateTest COMMAND ChatStateTest)
+target_include_directories (ChatStateTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries (ChatStateTest muleunit mulecommon)
+
+add_executable (KadPublishPolicyTest KadPublishPolicyTest.cpp)
+add_test (NAME KadPublishPolicyTest COMMAND KadPublishPolicyTest)
+target_include_directories (KadPublishPolicyTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries (KadPublishPolicyTest muleunit mulecommon)
+
 add_executable (AdvertisedIPv6Test AdvertisedIPv6Test.cpp)
 add_test (NAME AdvertisedIPv6Test COMMAND AdvertisedIPv6Test)
 target_include_directories (AdvertisedIPv6Test PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -2778,6 +2788,7 @@ endif()
 # Link only the packet writer so no network/application stubs or linker stripping is needed.
 add_executable (SearchPacketTest
 	SearchPacketTest.cpp
+	SearchMetadataPacketTest.cpp
 	${CMAKE_SOURCE_DIR}/src/SearchPacket.cpp
 	${CMAKE_SOURCE_DIR}/src/Parser.cpp
 	${CMAKE_SOURCE_DIR}/src/Scanner.cpp
@@ -2845,3 +2856,16 @@ if (AMULE_TEST_NODE_EXECUTABLE)
 	add_test (NAME DownloadDeleteTest
 		COMMAND ${AMULE_TEST_NODE_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/DownloadDeleteTest.mjs)
 endif ()
+
+# Obfuscation cipher wire compatibility, using the production buffer and cipher.
+add_executable (RC4Test
+	RC4Test.cpp
+	${CMAKE_SOURCE_DIR}/src/RC4Encrypt.cpp
+	${CMAKE_SOURCE_DIR}/src/MemFile.cpp
+	${CMAKE_SOURCE_DIR}/src/SafeFile.cpp
+	${CMAKE_SOURCE_DIR}/src/Tag.cpp
+)
+target_include_directories (RC4Test PRIVATE
+	${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/src/include)
+target_link_libraries (RC4Test muleunit mulecommon CRYPTOPP::CRYPTOPP)
+add_test (NAME RC4Test COMMAND RC4Test)

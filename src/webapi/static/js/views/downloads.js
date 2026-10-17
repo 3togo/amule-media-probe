@@ -94,7 +94,7 @@ export default function Downloads({ isGuest }) {
         ? t("downloads_confirm_delete_disk", { name: file.name, directory: file.directory })
         : t("downloads_confirm_cancel_download", { name: file.name });
       if (!(await confirmDialog(question))) return;
-      await api.del("downloads/" + file.hash, { expected: prepared.expected[file.hash] });
+      await api.del("downloads/" + file.hash, { confirmed_target: prepared.confirmed_target[file.hash] });
       setSelection((current) => selectionAfterDeletion(current, prepared.hashes));
       data.refresh("downloads");
     } catch (e) { toast(terr(e) || t("downloads_error"), "error"); }
@@ -130,7 +130,7 @@ export default function Downloads({ isGuest }) {
       if (prepared.files.length > shown.length)
         listing += "\n\n" + t("downloads_delete_more", { n: prepared.files.length - shown.length });
       if (!(await confirmDialog(tn("downloads_confirm_delete_selected", prepared.hashes.length) + "\n\n" + listing))) return;
-      return runBulk((h) => api.del("downloads", { hashes: h, expected: prepared.expected }),
+      return runBulk((h) => api.del("downloads", { hashes: h, confirmed_target: prepared.confirmed_target }),
         { clearSelection: true, hashes: prepared.hashes });
     }
     return runBulk((h) => api.patch("downloads", { hashes: h, action }));

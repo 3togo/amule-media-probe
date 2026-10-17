@@ -43,7 +43,8 @@ class LegacyCore(socketserver.BaseRequestHandler):
                                 integer(C['EC_TAG_PARTFILE_SIZE_FULL'], 3),
                                 tag(C['EC_TAG_PARTFILE_STATUS'], b'\x08' if self.server.mode == 'completing' else b'\x09', 2),
                                 string(C['EC_TAG_KNOWNFILE_PATH'], '/Incoming')]
-                    reply, tags = C['EC_OP_SHARED_FILES'], [tag(C['EC_TAG_PARTFILE'], struct.pack('!I', 7), 4, children)]
+                    reply, tags = C['EC_OP_SHARED_FILES'], [tag(C['EC_TAG_PARTFILE'], struct.pack('!I', 7), 4, children),
+                        tag(C['EC_TAG_KNOWNFILE'], struct.pack('!I', 7), 4, children)]
                 elif op == C['EC_OP_KNOWNFILE_DELETE']:
                     # A packet other than the deletion acknowledgment is not
                     # evidence that any file was removed.
@@ -92,12 +93,19 @@ def run(api, mode):
                     'completing': (409, 207, 'download_completed'),
                     'wrong_ack': (502, 207, 'ec_protocol_error'),
                 }[mode]
-                status, result = http(base, '/downloads/'+FILE_HASH, token, 'DELETE')
+                detail = http(base, '/downloads/'+FILE_HASH, token)[1]
+                target = {k: detail[k] for k in ('ecid', 'name', 'directory', 'status')}
+                status, result = http(base, '/downloads/'+FILE_HASH, token, 'DELETE', {'confirmed_target': target})
                 assert status == expected_status and result['error']['code'] == expected_code, (status, result)
-                status, result = http(base, '/downloads', token, 'DELETE', {'hashes':[FILE_HASH]})
+                status, result = http(base, '/downloads', token, 'DELETE', {'hashes':[FILE_HASH], 'confirmed_target': {FILE_HASH: target}})
                 assert status == expected_bulk and result['results'][0]['error']['code'] == expected_code, (status, result)
+                shared = http(base, '/shared/'+FILE_HASH, token)[1]
+                target = {k: shared[k] for k in ('ecid', 'name', 'directory', 'incomplete')}
+                status, result = http(base, '/shared/'+FILE_HASH, token, 'DELETE', {'confirmed_target': target})
+                shared_status, shared_code = (409, 'partfile_unsupported') if mode == 'completing' else (expected_status, expected_code)
+                assert status == shared_status and result['error']['code'] == shared_code, (status, result)
                 if mode == 'wrong_ack':
-                    assert core.ops.count(C['EC_OP_KNOWNFILE_DELETE']) == 2, core.ops
+                    assert core.ops.count(C['EC_OP_KNOWNFILE_DELETE']) == 3, core.ops
                 else:
                     assert C['EC_OP_KNOWNFILE_DELETE'] not in core.ops, core.ops
                 assert C['EC_OP_PARTFILE_DELETE'] not in core.ops, core.ops

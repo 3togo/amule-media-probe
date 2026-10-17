@@ -4,6 +4,7 @@
 // bulk Verify Local Data over the selection, whole-share media re-extract.
 // Live via the SSE "shared" channel.
 
+import { deleteSharedFile } from "../shared-delete.js";
 import { api, bulkFailures } from "../api.js";
 import { data } from "../events.js";
 import { html, useState, useEffect, useStore } from "../dom.js";
@@ -195,6 +196,10 @@ export default function Shared({ isGuest }) {
                     onChange=${(e) => setPriority(s.hash, e.target.value)}>
               ${PRIORITIES.map(([v, l]) => html`<option value=${v}>${v === "auto" && s.priority_auto ? prioLabel(s) : l}</option>`)}
             </select>` },
+    { key: "actions", label: t("downloads_actions"), cls: "row-actions admin-only", width: "150px",
+      cell: (s) => isGuest ? null : html`
+        <button class="btn btn-sm btn-danger admin-only" type="button"
+                onClick=${() => deleteSharedFile(s.hash)}>${t("downloads_delete_disk")}</button>` },
   ];
 
   list = sortRows(list, columns, sortKey, sortDir);
@@ -252,7 +257,7 @@ export default function Shared({ isGuest }) {
           <span>${tn("shared_files_count", list.length)}</span>${" · "}<span>${t("shared_size")} ${formatBytes(size)}</span>${" · "}<span>${t("shared_transferred")} ${formatBytes(xs) + " / " + formatBytes(xt)}</span>${" · "}<span>${t("shared_upload_speed")} ${formatSpeed(up)}</span>${freeSpace ? html`${" · "}<span>${t("common_free_space")} ${freeSpace}</span>` : ""}
         </div>`}
     </section>`}>
-        <${SharedDetail} hash=${detailHash} />
+        <${SharedDetail} hash=${detailHash} isGuest=${isGuest} />
       <//>
     </div>`;
 }

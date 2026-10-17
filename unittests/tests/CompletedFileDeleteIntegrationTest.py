@@ -275,36 +275,53 @@ def run(daemon, api):
                 assert http(base, '/downloads/'+second, guest, 'DELETE')[0] == 403
                 assert http(base, '/downloads', guest, 'DELETE', {'hashes':[second]})[0] == 403
                 assert (incoming / 'completed-2.txt').exists()
+                # Existing v1 clients must never opt into completed-file deletion implicitly.
+                for body in (None, {}, {'expected': {'ecid': 1}}):
+                    status, result = http(base, '/downloads/'+second, admin, 'DELETE', body)
+                    assert status == 409 and result['error']['code'] == 'download_completed', (status, result)
+                status, result = http(base, '/downloads', admin, 'DELETE', {'hashes': [second, third]})
+                assert status == 207 and all(r['error']['code'] == 'download_completed' for r in result['results'])
+                assert (incoming / 'completed-2.txt').exists() and (incoming / 'completed-3.txt').exists()
+                cancel_hash = '1123456789abcdef0123456789abcdef'
+                assert ec.call('EC_OP_ADD_LINK', [string(C['EC_TAG_STRING'],
+                    f'ed2k://|file|cancel-all.txt|100|{cancel_hash}|/')])[0] == C['EC_OP_NOOP']
+                eventually(lambda: http(base, '/downloads/'+cancel_hash, admin)[0] == 200)
+                status, result = http(base, '/downloads', admin, 'DELETE', {'hashes': [second, cancel_hash]})
+                assert status == 207 and result['results'][0]['error']['code'] == 'download_completed' and result['results'][1]['ok'], (status, result)
+                assert cancel_hash not in ec.files() and (incoming / 'completed-2.txt').exists()
+
                 detail = http(base, '/downloads/'+second, admin)[1]
-                expected = {k: detail[k] for k in ('ecid', 'name', 'directory', 'status')}
+                confirmed_target = {k: detail[k] for k in ('ecid', 'name', 'directory', 'status')}
                 for key, wrong in [('ecid', 0xffffffff), ('name', 'old.txt'),
                                    ('directory', '/old'), ('status', 'paused')]:
-                    stale = dict(expected, **{key: wrong})
-                    status, result = http(base, '/downloads/'+second, admin, 'DELETE', {'expected': stale})
+                    stale = dict(confirmed_target, **{key: wrong})
+                    status, result = http(base, '/downloads/'+second, admin, 'DELETE', {'confirmed_target': stale})
                     assert status == 409 and result['error']['code'] == 'selection_changed', (status, result)
                     status, result = http(base, '/downloads', admin, 'DELETE',
-                                          {'hashes': [second.upper()], 'expected': {second.upper(): stale}})
+                                          {'hashes': [second.upper()], 'confirmed_target': {second.upper(): stale}})
                     assert status == 207 and result['results'][0]['error']['code'] == 'selection_changed', (status, result)
                     assert (incoming / 'completed-2.txt').read_bytes() == b'abc'
                 # Validate the whole bulk precondition map before mutating any file.
-                for body in ({'hashes': [second, third], 'expected': {second: expected}},
-                             {'hashes': [second], 'expected': {second: {'ecid': 1}}}):
+                for body in ({'hashes': [second, third], 'confirmed_target': {second: confirmed_target}},
+                             {'hashes': [second], 'confirmed_target': {second: {'ecid': 1}}}):
                     assert http(base, '/downloads', admin, 'DELETE', body)[0] == 400
                     assert (incoming / 'completed-2.txt').exists()
-                assert http(base, '/downloads/'+second, admin, 'DELETE', {'expected': {}})[0] == 400
+                assert http(base, '/downloads/'+second, admin, 'DELETE', {'confirmed_target': {}})[0] == 400
                 incoming.chmod(0o555)
                 try:
-                    status, result = http(base, '/downloads/'+second, admin, 'DELETE')
+                    status, result = http(base, '/downloads/'+second, admin, 'DELETE', {'confirmed_target': confirmed_target})
                     assert status == 400 and result['error']['code'] == 'amuled_rejected', (status, result)
                     assert http(base, '/downloads/'+second, admin)[0] == 200
                     assert http(base, '/shared/'+second, admin)[0] == 200
                 finally:
                     incoming.chmod(0o755)
-                assert http(base, '/downloads/'+second, admin, 'DELETE', {'expected': expected})[0] == 204
+                assert http(base, '/downloads/'+second, admin, 'DELETE', {'confirmed_target': confirmed_target})[0] == 204
                 assert http(base, '/downloads/'+second, admin)[0] == 404
                 assert http(base, '/shared/'+second, admin)[0] == 404
                 assert not (incoming / 'completed-2.txt').exists()
-                status, result = http(base, '/downloads', admin, 'DELETE', {'hashes':[third, first]})
+                status, result = http(base, '/downloads', admin, 'DELETE', {'hashes':[third, first], 'confirmed_target': {
+                    third: {k: http(base, '/downloads/'+third, admin)[1][k] for k in ('ecid', 'name', 'directory', 'status')},
+                    first: confirmed_target}})
                 assert status == 207 and result['results'][0]['ok'] and not result['results'][1]['ok'], (status, result)
                 assert not (incoming / 'completed-3.txt').exists()
                 assert http(base, '/downloads/'+third, admin)[0] == 404
@@ -340,13 +357,49 @@ def run(daemon, api):
                 os.utime(replacement, (changed_time, changed_time))
                 eventually(lambda: seventh in ec.files(True) and ec.files(True)[seventh][0] != completed_id)
                 assert ec.files()[seventh][0] == completed_id
-                assert ec.call('EC_OP_KNOWNFILE_DELETE', ec.target(seventh, True))[0] == C['EC_OP_NOOP']
+                eventually(lambda: http(base, '/shared/'+seventh, admin)[1].get('ecid') == ec.files(True)[seventh][0])
+                shared_detail = http(base, '/shared/'+seventh, admin)[1]
+                target = {k: shared_detail[k] for k in ('ecid', 'name', 'directory', 'incomplete')}
+                assert http(base, '/shared/'+seventh, admin, 'DELETE', {'confirmed_target': target})[0] == 204
+                assert http(base, '/downloads/'+seventh, admin)[0] == 404
                 assert not replacement.exists() and seventh not in ec.files(True)
                 assert seventh not in ec.files(), 'deleting a shared replacement left a completed row'
                 # Clear remains separate and preserves the bytes/share.
                 assert http(base, '/downloads_clear_completed', admin, 'POST', {'hash':fourth})[0] == 200
                 assert (incoming / 'completed-4.txt').exists()
                 assert http(base, '/shared/'+fourth, admin)[0] == 200
+                # Shared REST deletion works after clear and for files never downloaded.
+                # The standalone EC fixture has already been deleted; re-share its bytes.
+                (incoming / 'shared.txt').write_bytes(b'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789')
+                eventually(lambda: http(base, '/shared/'+shared_hash, admin)[0] == 200)
+                for file_hash, filename in ((fourth, 'completed-4.txt'), (shared_hash, 'shared.txt')):
+                    path = '/shared/' + file_hash
+                    detail = http(base, path, admin)[1]
+                    target = {k: detail[k] for k in ('ecid', 'name', 'directory', 'incomplete')}
+                    assert target['ecid'] > 0 and target['incomplete'] is False
+                    assert http(base, path, method='DELETE')[0] == 401
+                    assert http(base, path, guest, 'DELETE', {'confirmed_target': target})[0] == 403
+                    for body in (None, {}, {'confirmed_target': {}}, {'confirmed_target': dict(target, incomplete='false')}):
+                        assert http(base, path, admin, 'DELETE', body)[0] == 400
+                    for key, wrong in [('ecid', 0xffffffff), ('name', 'old.txt'), ('directory', '/old'), ('incomplete', True)]:
+                        status, result = http(base, path, admin, 'DELETE', {'confirmed_target': dict(target, **{key: wrong})})
+                        assert status == 409 and result['error']['code'] == 'selection_changed', (status, result)
+                        assert (incoming / filename).exists()
+                    incoming.chmod(0o555)
+                    try:
+                        status, result = http(base, path, admin, 'DELETE', {'confirmed_target': target})
+                        assert status == 400 and result['error']['code'] == 'amuled_rejected', (status, result)
+                        assert http(base, path, admin)[0] == 200 and (incoming / filename).exists()
+                    finally:
+                        incoming.chmod(0o755)
+                    assert http(base, '/shared/'+file_hash.upper(), admin, 'DELETE', {'confirmed_target': target}) == (204, None)
+                    assert http(base, path, admin)[0] == 404 and not (incoming / filename).exists()
+                # Delete the remaining alternate share without touching the saved copy.
+                sixth_detail = http(base, '/shared/'+sixth, admin)[1]
+                target = {k: sixth_detail[k] for k in ('ecid', 'name', 'directory', 'incomplete')}
+                assert http(base, '/shared/'+sixth, admin, 'DELETE', {'confirmed_target': target})[0] == 204
+                assert http(base, '/shared/'+sixth, admin)[0] == 404
+                print('PASS: shared REST auth, confirmation, stale targets, failure preservation, cleared and standalone files')
                 # Active cancellation still works with the new per-file EC preconditions.
                 active_detail = http(base, '/downloads/'+active_hash, admin)[1]
                 assert active_detail['ecid'] > 0

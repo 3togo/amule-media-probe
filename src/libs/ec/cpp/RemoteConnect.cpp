@@ -744,10 +744,11 @@ bool CRemoteConnect::ProcessAuthPacket(const CECPacket *reply)
 			if (reply->GetTagByName(EC_TAG_CAN_CHAT_SESSIONS)) {
 				m_serverChatSessions = true;
 			}
+			// Complete-file deletion is safe only when the core advertises support.
+			m_serverDeleteComplete = reply->GetTagByName(EC_TAG_CAN_DELETE_COMPLETE) != nullptr;
 			// Server accepts/lists chat sessions by hash. Old daemons omit the echo and
 			// we address and list by GUI_ID only, exactly as a build that predates the
 			// hash tag would.
-			m_serverDeleteComplete = reply->GetTagByName(EC_TAG_CAN_DELETE_COMPLETE) != nullptr;
 			if (reply->GetTagByName(EC_TAG_CAN_CHAT_PEER_HASH)) {
 				m_serverChatPeerHash = true;
 			}

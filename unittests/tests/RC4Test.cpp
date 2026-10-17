@@ -20,38 +20,14 @@ TEST(RC4, KnownAnswersWithAndWithoutDiscard)
 	// A default MD5Sum holds sixteen zero bytes. Constants were generated
 	// independently and are also checked against Crypto++ below.
 	const MD5Sum key;
-	const uint8 expected[2][16] = { { 0xde,
-						0x18,
-						0x89,
-						0x41,
-						0xa3,
-						0x37,
-						0x5d,
-						0x3a,
-						0x8a,
-						0x06,
-						0x1e,
-						0x67,
-						0x57,
-						0x6e,
-						0x92,
-						0x6d },
-		{ 0x9a,
-			0x88,
-			0x98,
-			0xeb,
-			0xed,
-			0x25,
-			0x89,
-			0x53,
-			0x36,
-			0xae,
-			0x11,
-			0x9a,
-			0xe5,
-			0x03,
-			0xca,
-			0xd6 } };
+	// clang-format off
+	const uint8 expected[2][16] = {
+		{ 0xde, 0x18, 0x89, 0x41, 0xa3, 0x37, 0x5d, 0x3a,
+		  0x8a, 0x06, 0x1e, 0x67, 0x57, 0x6e, 0x92, 0x6d },
+		{ 0x9a, 0x88, 0x98, 0xeb, 0xed, 0x25, 0x89, 0x53,
+		  0x36, 0xae, 0x11, 0x9a, 0xe5, 0x03, 0xca, 0xd6 }
+	};
+	// clang-format on
 	for (unsigned discard = 0; discard < 2; ++discard) {
 		CRC4EncryptableBuffer cipher;
 		cipher.SetKey(key, discard == 0);
@@ -142,29 +118,45 @@ TEST(RC4, ChunkingInPlaceAndDiscardPreserveStream)
 TEST(RC4, ResetDataKeepsKeyAndFullResetAllowsRekey)
 {
 	const MD5Sum key(wxT("RC4 reset regression"));
-	CRC4EncryptableBuffer cipher, reference;
-	cipher.SetKey(key);
-	reference.SetKey(key);
-	const std::array<uint8, 17> plain{};
-	std::array<uint8, 17> expected{};
-	for (unsigned i = 0; i < 2; ++i) {
+	const MD5Sum newKey(wxT("RC4 different key after full reset"));
+	for (bool skipDiscard : { false, true }) {
+		CRC4EncryptableBuffer cipher;
+		cipher.SetKey(key, skipDiscard);
+		CryptoPP::Weak::ARC4 reference(key.GetRawHash(), 16);
+		if (!skipDiscard) {
+			reference.DiscardBytes(1024);
+		}
+		const std::array<uint8, 17> plain{};
+		std::array<uint8, 17> expected{};
+		for (unsigned i = 0; i < 2; ++i) {
+			cipher.Append(plain.data(), plain.size());
+			cipher.Encrypt();
+			reference.ProcessData(expected.data(), plain.data(), plain.size());
+			ASSERT_EQUALS(plain.size(), cipher.GetLength());
+			for (size_t j = 0; j < expected.size(); ++j) {
+				ASSERT_EQUALS(unsigned(expected[j]), unsigned(cipher.GetRawBuffer()[j]));
+			}
+			cipher.ResetData();
+			ASSERT_EQUALS(0u, cipher.GetLength());
+		}
+		// Leave encrypted data in the buffer so FullReset must clear both
+		// the data/encryption flag and the old key/permutation.
 		cipher.Append(plain.data(), plain.size());
 		cipher.Encrypt();
-		reference.RC4Crypt(plain.data(), expected.data(), expected.size());
+		cipher.FullReset();
+		ASSERT_EQUALS(0u, cipher.GetLength());
+		cipher.SetKey(newKey, skipDiscard);
+		reference.SetKey(newKey.GetRawHash(), 16);
+		if (!skipDiscard) {
+			reference.DiscardBytes(1024);
+		}
+		cipher.Append(plain.data(), plain.size());
+		cipher.Encrypt();
+		reference.ProcessData(expected.data(), plain.data(), plain.size());
+		ASSERT_EQUALS(plain.size(), cipher.GetLength());
 		for (size_t j = 0; j < expected.size(); ++j) {
 			ASSERT_EQUALS(unsigned(expected[j]), unsigned(cipher.GetRawBuffer()[j]));
 		}
-		cipher.ResetData();
-	}
-	cipher.FullReset();
-	cipher.SetKey(key);
-	CRC4EncryptableBuffer fresh;
-	fresh.SetKey(key);
-	std::array<uint8, 17> actual{};
-	cipher.RC4Crypt(plain.data(), actual.data(), actual.size());
-	fresh.RC4Crypt(plain.data(), expected.data(), expected.size());
-	for (size_t j = 0; j < expected.size(); ++j) {
-		ASSERT_EQUALS(unsigned(expected[j]), unsigned(actual[j]));
 	}
 }
 

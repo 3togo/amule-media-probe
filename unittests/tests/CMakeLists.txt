@@ -2832,28 +2832,3 @@ target_include_directories (RC4Test PRIVATE
 	${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/src/include)
 target_link_libraries (RC4Test muleunit mulecommon CRYPTOPP::CRYPTOPP)
 add_test (NAME RC4Test COMMAND RC4Test)
-
-# Opt-in developer benchmark: identical public-API harness, separate source TUs.
-option (AMULE_BUILD_RC4_BENCHMARKS "Build production and baseline RC4 benchmarks" OFF)
-if (AMULE_BUILD_RC4_BENCHMARKS)
-	foreach (variant IN ITEMS Production Baseline)
-		if (variant STREQUAL "Production")
-			set (rc4_benchmark_source ${CMAKE_SOURCE_DIR}/src/RC4Encrypt.cpp)
-		else ()
-			set (rc4_benchmark_source ${CMAKE_SOURCE_DIR}/experiments/rc4/RC4EncryptBaseline.cpp)
-		endif ()
-		add_executable (RC4${variant}Benchmark
-			${CMAKE_SOURCE_DIR}/experiments/rc4/production-bench.cpp
-			${rc4_benchmark_source}
-			${CMAKE_SOURCE_DIR}/src/MemFile.cpp
-			${CMAKE_SOURCE_DIR}/src/SafeFile.cpp
-			${CMAKE_SOURCE_DIR}/src/Tag.cpp
-			${CMAKE_SOURCE_DIR}/src/LoggerConsole.cpp
-		)
-		target_include_directories (RC4${variant}Benchmark PRIVATE
-			${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/src/include
-			${CMAKE_SOURCE_DIR}/src/libs)
-		target_compile_definitions (RC4${variant}Benchmark PRIVATE wxUSE_GUI=0)
-		target_link_libraries (RC4${variant}Benchmark mulecommon CRYPTOPP::CRYPTOPP)
-	endforeach ()
-endif ()

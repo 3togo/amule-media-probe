@@ -40,6 +40,7 @@
 #include "UploadBlockLists.h" // Needed for PushDoneBlock
 #include "Statistics.h"       // Needed for theStats
 #include "UploadPacketBuilder.h"
+#include "UploadIOProfile.h"
 
 #include <vector>
 
@@ -101,9 +102,14 @@ void CUploadDiskIOThread::SocketNeedsMoreData()
 void *CUploadDiskIOThread::Entry()
 {
 	m_bRun = true;
+	UploadIOProfile profile;
+	if (profile.Failed()) {
+		AddLogLineN("Upload I/O profiling disabled: cannot open output file");
+	}
 
 	while (m_bRun) // eMule ref: line 88
 	{
+		profile.BeginLoop();
 		std::vector<uint32> clientIds;
 		{
 			wxMutexLocker uploadLock(theApp->uploadqueue->GetUploadingListLock());
@@ -118,7 +124,7 @@ void *CUploadDiskIOThread::Entry()
 			}
 		}
 		for (uint32 clientId : clientIds) {
-			StartCreateNextBlockPackage(clientId);
+			StartCreateNextBlockPackage(clientId, profile);
 		}
 
 		// Reads are synchronous, so there is no m_listPendingIO: every completed
@@ -133,6 +139,10 @@ void *CUploadDiskIOThread::Entry()
 		if (m_bSignalThrottler && theApp->uploadBandwidthThrottler != NULL) {
 			theApp->uploadBandwidthThrottler->NewUploadDataAvailable();
 			m_bSignalThrottler = false;
+		}
+
+		if (!profile.EndLoop()) {
+			AddLogLineN("Upload I/O profiling disabled: cannot write output file");
 		}
 
 		// wxCondition::WaitTimeout(500ms) in place of eMule's WaitForMultipleObjects.
@@ -173,10 +183,10 @@ void *CUploadDiskIOThread::Entry()
 // m_blockListLock for every block request a client sends, so neither is held across the disk
 // read. Each block is prepared under both locks, read with none, then committed under both
 // again, after checking the client and its request are still there.
-void CUploadDiskIOThread::StartCreateNextBlockPackage(uint32 clientId)
+void CUploadDiskIOThread::StartCreateNextBlockPackage(uint32 clientId, UploadIOProfile &profile)
 {
 	while (ReadRequest_Struct *req = PrepareRead(clientId)) {
-		if (!CommitRead(req, ReadBlock(req))) {
+		if (!CommitRead(req, ReadBlock(req, profile))) {
 			return;
 		}
 	}
@@ -281,13 +291,17 @@ ReadRequest_Struct *CUploadDiskIOThread::PrepareRead(uint32 clientId)
 
 // Runs with no locks held, and touches neither the client nor the file object, except the
 // pinned part file's ReadData and GetStatus.
-CUploadDiskIOThread::ReadResult CUploadDiskIOThread::ReadBlock(ReadRequest_Struct *req)
+CUploadDiskIOThread::ReadResult CUploadDiskIOThread::ReadBlock(
+	ReadRequest_Struct *req, UploadIOProfile &profile)
 {
 	uint32 togo = (uint32)(req->uEndOffset - req->uStartOffset);
 	ReadResult result = READ_OK;
+	UploadIOProfile::Read readTimer(
+		profile, togo, req->pPartFile != nullptr, profile.Enabled() && CFileArea::GetMMapEnabled());
 	try {
 		if (req->pPartFile != nullptr) {
 			bool handleClosed = false;
+			readTimer.Start();
 			if (!req->pPartFile->ReadData(req->area, req->uStartOffset, togo, &handleClosed)) {
 				// A closed handle means PerformFileComplete got there first: the download
 				// finished and the file is on its way to Incoming. That is not this
@@ -313,6 +327,7 @@ CUploadDiskIOThread::ReadResult CUploadDiskIOThread::ReadBlock(ReadRequest_Struc
 		} else {
 			CFileAutoClose file;
 			if (file.Open(req->path, CFile::read)) {
+				readTimer.Start();
 				req->area.ReadAt(file, req->uStartOffset, togo);
 			} else {
 				result = READ_OPEN_FAILED;
@@ -323,6 +338,7 @@ CUploadDiskIOThread::ReadResult CUploadDiskIOThread::ReadBlock(ReadRequest_Struc
 			// SIGBUS error) happen while the packets are built under uploadLock.
 			req->area.Prefault();
 			req->area.CheckError();
+			readTimer.Finish();
 		}
 	} catch (const CIOFailureException &error) {
 		AddDebugLogLineC(logClient, "CUploadDiskIOThread: IO failure: " + error.what());

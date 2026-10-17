@@ -134,6 +134,7 @@ FIXTURES = [
     (b'1234567890' * 8, 'e33b4ddc9c38f2199c3e7b164fcc0536'),
     (b'The quick brown fox jumps over the lazy dog', '1bee69a46ba811185c194762abaeae90'),
     (b'The quick brown fox jumps over the lazy dog.', '2812c6c7136898c51f6f6739ad08750e'),
+    (b'ab', 'ec388dd78999dfc7cf4632465693b6bf'),
 ]
 
 
@@ -400,6 +401,36 @@ def run(daemon, api):
                 assert http(base, '/shared/'+sixth, admin, 'DELETE', {'confirmed_target': target})[0] == 204
                 assert http(base, '/shared/'+sixth, admin)[0] == 404
                 print('PASS: shared REST auth, confirmation, stale targets, failure preservation, cleared and standalone files')
+                # A different-hash replacement at the same path is a different file,
+                # even when the old completed row still has the confirmed identity.
+                eighth = FIXTURES[7][1]
+                old_target = ec.target(eighth)
+                old_detail = http(base, '/downloads/'+eighth, admin)[1]
+                old_confirmation = {k: old_detail[k] for k in ('ecid', 'name', 'directory', 'status')}
+                stale_path = incoming / 'completed-8.txt'
+                stale_path.rename(root / 'saved-eighth.txt')
+                stale_path.write_bytes(FIXTURES[0][0])
+                eventually(lambda: first in ec.files(True) and
+                    field(ec.files(True)[first][1], 'EC_TAG_PARTFILE_NAME').rstrip(b'\0') == b'completed-8.txt')
+                assert ec.call('EC_OP_KNOWNFILE_DELETE', old_target)[0] == C['EC_OP_FAILED'], 'stale completed target deleted a different-hash replacement'
+                assert stale_path.read_bytes() == FIXTURES[0][0]
+                status, result = http(base, '/downloads/'+eighth, admin, 'DELETE', {'confirmed_target': old_confirmation})
+                assert status == 400 and result['error']['code'] == 'amuled_rejected', (status, result)
+                assert stale_path.read_bytes() == FIXTURES[0][0]
+                assert eighth in ec.files() and first in ec.files(True)
+                status, result = http(base, '/downloads', admin, 'DELETE',
+                    {'hashes': [eighth], 'confirmed_target': {eighth: old_confirmation}})
+                assert status == 207 and result['results'][0]['error']['code'] == 'amuled_rejected', (status, result)
+                assert stale_path.read_bytes() == FIXTURES[0][0]
+
+                # Delete the replacement through its own confirmed shared identity.
+                eventually(lambda: http(base, '/shared/'+first, admin)[1].get('name') == 'completed-8.txt')
+                replacement_detail = http(base, '/shared/'+first, admin)[1]
+                target = {k: replacement_detail[k] for k in ('ecid', 'name', 'directory', 'incomplete')}
+                assert http(base, '/shared/'+first, admin, 'DELETE', {'confirmed_target': target})[0] == 204
+                assert not stale_path.exists() and (root / 'saved-eighth.txt').read_bytes() == FIXTURES[7][0]
+                assert ec.call('EC_OP_KNOWNFILE_DELETE', old_target)[0] == C['EC_OP_NOOP']
+                print('PASS: stale completed identity preserves a different-hash replacement at the same path')
                 # Active cancellation still works with the new per-file EC preconditions.
                 active_detail = http(base, '/downloads/'+active_hash, admin)[1]
                 assert active_detail['ecid'] > 0

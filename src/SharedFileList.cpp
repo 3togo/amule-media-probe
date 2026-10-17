@@ -1014,6 +1014,20 @@ CSharedFileList::DeleteFileResult CSharedFileList::DeleteFileFromDisk(const CMD4
 		return DeleteFileResult::Changed;
 	}
 	const CPath fullpath = file->GetFilePath().JoinPaths(file->GetFileName());
+	// A completed row can survive removal of its shared record. Its name/path
+	// still match the confirmation even after another file has been hashed at
+	// that path, so check the live path owner before unlinking any bytes.
+	bool replaced = false;
+	{
+		wxMutexLocker lock(list_mut);
+		const auto current = m_pathIndex.find(NormalizePathKey(fullpath.GetRaw()));
+		replaced = current != m_pathIndex.end() && current->second->GetFileHash() != hash;
+	}
+	if (replaced) {
+		error = _("The selected file has changed or is not a complete file.");
+		AddLogLineC(error);
+		return DeleteFileResult::Changed;
+	}
 	ListOfUInts32 completedIds(1, ecid);
 	const CPartFile *completed = theApp->downloadqueue->GetFileByID(hash);
 	if (completed && completed->IsCompleted() && completed->ECID() != ecid &&

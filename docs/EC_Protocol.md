@@ -914,6 +914,8 @@ string), copied from the selected complete file. Paths are values to compare
 with the core's record, never arbitrary paths to unlink.
 
 The core rechecks identity, completeness, directory, and name before deleting.
+If another shared file with a different hash now owns that path, the stale
+completed-row target is rejected and the replacement is preserved.
 Success returns `EC_OP_NOOP`, unshares the file, stops its uploads, and clears
 its completed transfer row if present. The known-file record remains and the
 hash is not added to `canceled.met`. An already missing file also succeeds.

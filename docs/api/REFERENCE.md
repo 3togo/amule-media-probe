@@ -1855,7 +1855,7 @@ Removing a path that is not configured is a `404` rather than a silent success, 
 Permanently deletes a complete shared file from disk through `EC_OP_KNOWNFILE_DELETE`, including files that were never downloaded or whose completed notification was cleared. Stops sharing/uploads and removes matching completed rows; known-file history is retained and the hash is not marked cancelled. An unlink failure leaves the file shared and listed.
 
 **Required body:** `{ "confirmed_target": { "ecid": 123, "name": "file.ext", "directory": "/Incoming", "incomplete": false } }`.
-Copy all four fields from `GET /shared/{hash}` (`ecid` is the current core record ID, exposed on detail GET). The shared representation uses `incomplete` for its state precondition, while downloads use `status`. The server checks the confirmed identity against its snapshot and the core revalidates it immediately before unlinking. A changed identity returns `409 selection_changed`; missing or malformed confirmation returns `400 bad_request`.
+Copy all four fields from `GET /shared/{hash}` (`ecid` is the current core record ID, exposed on detail GET). The shared representation uses `incomplete` for its state precondition, while downloads use `status`. The server checks the confirmed identity against its snapshot and the core revalidates it immediately before unlinking. The core also rejects a stale completed-row target if a different shared file now owns its path. A changed identity returns `409 selection_changed`; missing or malformed confirmation returns `400 bad_request`.
 
 ```sh
 curl -s -H "Authorization: Bearer $TOKEN" "http://$HOST/api/v1/shared/$HASH" > shared-target.json

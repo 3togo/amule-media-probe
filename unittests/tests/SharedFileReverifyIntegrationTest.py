@@ -152,6 +152,7 @@ def run(binary, root):
     fallback_content = os.urandom(300000)
     fallback.write_bytes(fallback_content)
 
+    print("Checking uploads with automatic verification disabled", flush=True)
     # Disabled by default: a valid upload must not create verification results.
     with daemon(binary, root, None) as (proc, ec, port):
         file_hash = records(ec)['damaged.bin'][C['EC_TAG_PARTFILE_HASH']]
@@ -160,6 +161,7 @@ def run(binary, root):
             receive(sock, file_hash, content, PART)
         assert all(not date(record) for record in records(ec).values())
 
+    print("Checking silent corruption and healthy-part uploads", flush=True)
     # Preserve size and mtime: startup must still share the original identity.
     stamp = damaged.stat()
     with damaged.open('r+b') as output:
@@ -187,6 +189,7 @@ def run(binary, root):
         assert_withheld(port, file_hash, 2)
         assert not date(records(ec)['unrequested.bin'])
 
+        print("Checking size-mismatch persistence", flush=True)
         # A length mismatch must persist damage rather than merely logging it.
         with truncated.open('r+b') as output:
             output.truncate(100000)
@@ -198,6 +201,7 @@ def run(binary, root):
         assert truncated_result[C['EC_TAG_KNOWNFILE_VERIFY_CORRUPT_MD4']].rstrip(b'\0') == b'0'
         assert_withheld(port, truncated_hash, 7, parts=1, bitmap=0)
 
+        print("Checking MD4 fallback without AICH data", flush=True)
         # No AICH data must still allow the MD4 check and uploads to finish.
         aich_path = root / 'known2_64.met'
         aich_data = aich_path.read_bytes()
@@ -212,6 +216,7 @@ def run(binary, root):
         aich_path.write_bytes(aich_data)
         assert len(reports(root)) == 1, 'the same-session check was repeated'
 
+    print("Checking persisted corruption after restart", flush=True)
     # known.met restores the result; recent checks are not requeued after restart.
     with daemon(binary, root, 7) as (proc, ec, port):
         reports_before = reports(root)
@@ -226,6 +231,7 @@ def run(binary, root):
         assert not date(records(ec)['unrequested.bin'])
         assert reports(root) == reports_before, 'recent persisted check was repeated'
 
+        print("Checking manual verification after repair", flush=True)
         # Manual verification remains available inside the automatic interval and clears
         # withholding after the original bytes have been restored.
         with damaged.open('r+b') as output:

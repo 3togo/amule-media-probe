@@ -100,6 +100,9 @@ def run(api, mode):
                 status, result = http(base, '/downloads', token, 'DELETE', {'hashes':[FILE_HASH], 'confirmed_target': {FILE_HASH: target}})
                 assert status == expected_bulk and result['results'][0]['error']['code'] == expected_code, (status, result)
                 shared = http(base, '/shared/'+FILE_HASH, token)[1]
+                rows = http(base, '/shared', token)[1]['shared']
+                assert len(rows) == 1 and rows[0].get('incomplete') is (mode == 'completing'), rows
+                assert rows[0]['incomplete'] == shared['incomplete']
                 target = {k: shared[k] for k in ('ecid', 'name', 'directory', 'incomplete')}
                 status, result = http(base, '/shared/'+FILE_HASH, token, 'DELETE', {'confirmed_target': target})
                 shared_status, shared_code = (409, 'partfile_unsupported') if mode == 'completing' else (expected_status, expected_code)

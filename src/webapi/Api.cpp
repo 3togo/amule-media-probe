@@ -2974,6 +2974,8 @@ void WriteSharedBaseFields(CJsonWriter &w, const webapi::FileSnapshot &f, bool d
 	w.ValueString(wxString::FromUTF8(f.shared.priority.c_str()));
 	w.Key("priority_auto");
 	w.ValueBool(f.shared.priority_auto);
+	w.Key("incomplete");
+	w.ValueBool(f.IsIncompletePartfile());
 	// A stated exception to R11: this wraps a single quantity. The identical figure is
 	// `sources.complete` on a search result, so one access path works on every endpoint
 	// that has the concept.
@@ -3057,12 +3059,8 @@ void WriteSharedDetailObject(CJsonWriter &w, const webapi::FileSnapshot &f)
 	w.Key("directory");
 	// The on-disk directory (Temp while downloading, destination once completed), the
 	// same value /downloads/{hash} reports. Reported directly rather than masked with a
-	// placeholder while incomplete; `incomplete` below carries that state explicitly.
+	// placeholder while incomplete; the base fields carry that state explicitly.
 	w.ValueString(wxString::FromUTF8(f.on_disk_dir.c_str()));
-	w.Key("incomplete");
-	// Always present, so clients test it rather than probe for absence.
-	// Detail-only, like `path`, so the SSE event rate is unaffected.
-	w.ValueBool(f.IsIncompletePartfile());
 	WriteStringOrNull(w, "aich_hash", !f.aich_hash.empty(), f.aich_hash);
 	w.Key("total_part_count");
 	w.ValueInt(static_cast<int64_t>(webapi::PartCountForSize(f.size)));

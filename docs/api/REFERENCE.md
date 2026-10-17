@@ -1550,6 +1550,7 @@ curl -s -H "Authorization: Bearer $TOKEN" "http://$HOST/api/v1/shared"
       "size_bytes":       3217,
       "priority":         "normal",
       "priority_auto":    false,
+      "incomplete":       false,
       "sources":          { "complete": 12 },
       "uploaded_bytes_session":         5242880,
       "uploaded_bytes_total":           314572800,
@@ -1581,6 +1582,8 @@ curl -s -H "Authorization: Bearer $TOKEN" "http://$HOST/api/v1/shared"
 
 `priority` is the upload priority — `"very_low"` / `"low"` / `"normal"` / `"high"` / `"release"` — and `priority_auto` is `true` when amuled is deriving that level automatically from the upload queue. This mirrors the `/downloads` shape (base `priority` + separate `priority_auto` flag); on an auto file `priority` reports the current derived level, not the literal string `"auto"`. For a file that is both downloading and shared this upload priority is independent of the download priority reported by [`GET /api/v1/downloads`](#get-apiv1downloads).
 
+`incomplete` is a boolean on shared list rows, detail objects, and `shared_added` / `shared_updated` events. It is `true` for an active or completing partfile and `false` for a complete file, including a completed download awaiting Clear. It lets clients disable complete-file actions; a completion emits `shared_updated` even when upload statistics are unchanged.
+
 `hashed_part_count` is the number of parts hashed so far by a pass running over the file — a [`POST /shared/{hash}/verify`](#post-apiv1sharedhashverify) run, or an AICH hashset rebuild — and `0` when nothing is hashing. It is a count of completed parts, not the index of the part in flight, so it runs `0` → `total_part_count`, which is on this row.
 
 A file that is both downloading and shared reports its progress here as well: amuled describes such a file as a partfile, so the value is read across from the download side and the two agree. That makes `hashed_part_count` usable from either list without checking which one owns the file.
@@ -1595,7 +1598,7 @@ The SSE `shared_added` / `shared_updated` event payload matches this object byte
 
 **Auth:** `GUEST`
 
-Detail view for a single shared file. `{hash}` is the 32-char MD4 hex hash (case-insensitive). Returns every field of the [`GET /shared`](#get-apiv1shared) list item plus the detail-only fields below — one call for everything about a shared file. The list endpoint is unchanged.
+Detail view for a single shared file. `{hash}` is the 32-char MD4 hex hash (case-insensitive). Returns every field of the [`GET /shared`](#get-apiv1shared) list item plus the detail-only fields below — one call for everything about a shared file.
 
 ```sh
 curl -s -H "Authorization: Bearer $TOKEN" \
@@ -1608,7 +1611,6 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 | `file_type` | string | Category token derived from the extension: `"audio"`, `"video"`, `"archive"`, `"disc_image"`, `"picture"`, `"text"`, `"program"`, or `"unknown"`. |
 | `upload_ratio` | number | `xfer.total / size`; `0` when `size == 0`. |
 | `directory` | string | Directory path of the on-disk file — the temp directory while the file is still an incomplete partfile, the destination directory once it has completed. Identical to `directory` on `/downloads/{hash}` for the same file. |
-| `incomplete` | bool | `true` while the file is still an incomplete partfile, `false` once complete. Always present. A download that has finished but has not been cleared yet reports `false`, since its data already sits in the destination directory. |
 | `sources.complete_min` / `sources.complete_max` | int | The low and high ends of the estimated full-copy source range behind `sources.complete`. Two scalars, not a nested object. |
 | `aich_hash` | string\|null | AICH master hash (hex), or `null` until the hashset exists. |
 | `total_part_count` | int | Total parts, `ceil(size / 9.28 MiB)`. |

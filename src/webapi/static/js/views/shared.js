@@ -87,9 +87,8 @@ export default function Shared({ isGuest }) {
   // call is an EC roundtrip, so they are not fired in parallel. Switch to one
   // call if the API ever grows POST /shared/verify.
   //
-  // Ineligible rows cannot be filtered out up front: `incomplete` is
-  // detail-only, so a still-downloading file is discovered from its own 409
-  // and counts as a failure -- cheaper than a detail fetch per selected row.
+  // The server rechecks eligibility per file: a downloading row can complete
+  // or change while the selected files are being verified.
   // The button is disabled for the whole run: unlike its single-request
   // siblings this loop stays in flight for seconds, and a second click would
   // queue every selected file for a re-hash twice.
@@ -198,7 +197,7 @@ export default function Shared({ isGuest }) {
             </select>` },
     { key: "actions", label: t("downloads_actions"), cls: "row-actions admin-only", width: "150px",
       cell: (s) => isGuest ? null : html`
-        <button class="btn btn-sm btn-danger admin-only" type="button"
+        <button class="btn btn-sm btn-danger admin-only" type="button" disabled=${!!s.incomplete}
                 onClick=${() => deleteSharedFile(s.hash)}>${t("downloads_delete_disk")}</button>` },
   ];
 

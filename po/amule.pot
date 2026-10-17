@@ -8968,6 +8968,11 @@ msgstr ""
 
 #: src/ThreadTasks.cpp
 #, c-format
+msgid "Verify Local Data: missing MD4 hashes for %s, so it was not checked."
+msgstr ""
+
+#: src/ThreadTasks.cpp
+#, c-format
 msgid "Verify Local Data: %s was removed or changed during the check, which did not finish."
 msgstr ""
 
@@ -9025,19 +9030,6 @@ msgstr ""
 #: src/UploadClient.cpp
 #, c-format
 msgid "Hashset requested for unknown file: %s"
-msgstr ""
-
-#: src/UploadDiskIOThread.cpp
-#, c-format
-msgid "Upload verification failed for '%s' (bytes %d-%d): %s. Uploads of this file are blocked until restart."
-msgstr ""
-
-#: src/UploadDiskIOThread.cpp
-msgid "AICH hash mismatch"
-msgstr ""
-
-#: src/UploadDiskIOThread.cpp
-msgid "AICH verification unavailable"
 msgstr ""
 
 #: src/UploadDiskIOThread.cpp

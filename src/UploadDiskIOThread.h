@@ -28,17 +28,11 @@
 
 #include <list>
 #include <atomic>
-#include <memory>
-#include <unordered_map>
-#include <unordered_set>
-#include <vector>
 #include <utility> // Needed for std::pair
 
 #include <wx/thread.h>
 
 #include "Types.h"
-#include "SHAHashSet.h"
-#include "MD4Hash.h"
 #include "FileArea.h"    // Needed for CFileArea
 #include <common/Path.h> // Needed for CPath
 
@@ -69,13 +63,8 @@ struct ReadRequest_Struct
 	uint64 uStartOffset = 0;
 	uint64 uEndOffset = 0;
 	CPartFile *pPartFile = nullptr; // pinned for the read; null for a complete file
-	bool verifyUpload = false;
-	uint64 fileSize = 0;
-	CAICHHash aichMasterHash;
-	bool hasAichMasterHash = false;
-	std::vector<uint8_t> verifiedData;
-	CPath path;     // complete file only
-	CFileArea area; // holds read buffer; replaces BYTE* pBuffer + OVERLAPPED
+	CPath path;                     // complete file only
+	CFileArea area;                 // holds read buffer; replaces BYTE* pBuffer + OVERLAPPED
 };
 
 // Port of eMule's CUploadDiskIOThread (UploadDiskIOThread.h:48-86). Windows primitives replaced
@@ -110,8 +99,7 @@ private:
 	// StartCreateNextBlockPackage runs each block through PrepareRead, ReadBlock, CommitRead.
 	void StartCreateNextBlockPackage(uint32 clientId); // eMule ref: line 185
 	ReadRequest_Struct *PrepareRead(uint32 clientId);
-	ReadResult ReadBlock(ReadRequest_Struct *req);
-	bool ReadVerifiedFile(ReadRequest_Struct &req, CFileAutoClose &file);
+	static ReadResult ReadBlock(ReadRequest_Struct *req);
 	bool CommitRead(ReadRequest_Struct *req, ReadResult result);
 	void ReadCompletionRoutine(ReadRequest_Struct *req); // eMule ref: line 369
 	bool ReleaseOpenFile(OpenFile_Struct *pFileStruct);  // eMule ref: line 498
@@ -129,8 +117,6 @@ private:
 
 	std::list<OpenFile_Struct *> m_listOpenFiles;     // eMule ref: line 83
 	std::list<ReadRequest_Struct *> m_listFinishedIO; // eMule ref: line 85
-	std::unordered_map<CMD4Hash, std::unique_ptr<CAICHHashSet>> m_uploadHashsets;
-	std::unordered_set<CMD4Hash> m_blockedFiles;
 	// m_listPendingIO not needed -- reads are synchronous, go straight to m_listFinishedIO
 };
 

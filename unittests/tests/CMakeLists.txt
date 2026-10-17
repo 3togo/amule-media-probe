@@ -1667,7 +1667,7 @@ target_link_libraries (ChatSessionStoreTest
 	mulecommon
 )
 
-# Queue bookkeeping only; the scheduler is never started, so no task runs.
+# Queue bookkeeping and the one-per-type limit for queued and running tasks.
 add_executable (ThreadSchedulerTest
 	ThreadSchedulerTest.cpp
 	${CMAKE_SOURCE_DIR}/src/ThreadScheduler.cpp
@@ -2527,6 +2527,10 @@ if (ENABLE_INTEGRATION_TESTS AND BUILD_DAEMON AND UNIX AND NOT APPLE)
 					--amuled $<TARGET_FILE:amuled> --amuleapi $<TARGET_FILE:amuleapi>
 			)
 		endif ()
+		add_test (NAME SharedFileReverifyIntegrationTest
+			COMMAND ${Python3_EXECUTABLE} -u
+				${CMAKE_CURRENT_SOURCE_DIR}/SharedFileReverifyIntegrationTest.py $<TARGET_FILE:amuled>
+		)
 		add_test (NAME KnownHistoryIntegrationTest
 			COMMAND ${Python3_EXECUTABLE}
 				${CMAKE_CURRENT_SOURCE_DIR}/KnownHistoryIntegrationTest.py $<TARGET_FILE:amuled>
@@ -2616,7 +2620,6 @@ endif()
 
 # Exercise production consensus with explicit, fail-fast application stubs.
 add_executable (AICHSearchResultTest
-	UploadIntegrityTest.cpp
 	AICHSearchResultTest.cpp
 	AICHSearchResultStubs.cpp
 	${CMAKE_SOURCE_DIR}/src/KadAICHVotes.cpp
@@ -2820,3 +2823,8 @@ target_include_directories (AmuleApiProcessTest PRIVATE
 )
 target_link_libraries (AmuleApiProcessTest muleunit mulecommon wxWidgets::BASE)
 add_test (NAME AmuleApiProcessTest COMMAND AmuleApiProcessTest)
+
+add_executable (SharedFileVerifyScheduleTest SharedFileVerifyScheduleTest.cpp)
+add_test (NAME SharedFileVerifyScheduleTest COMMAND SharedFileVerifyScheduleTest)
+target_include_directories (SharedFileVerifyScheduleTest PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries (SharedFileVerifyScheduleTest muleunit mulecommon)

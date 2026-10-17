@@ -24,8 +24,6 @@
 //
 
 #include "UploadDiskIOThread.h"
-#include "UploadIntegrity.h"
-#include "Preferences.h"
 
 #include "updownclient.h"    // Needed for CUpDownClient
 #include "UploadQueue.h"     // Needed for CUploadQueue
@@ -107,7 +105,6 @@ void *CUploadDiskIOThread::Entry()
 	while (m_bRun) // eMule ref: line 88
 	{
 		std::vector<uint32> clientIds;
-		std::unordered_set<CMD4Hash> activeFiles;
 		{
 			wxMutexLocker uploadLock(theApp->uploadqueue->GetUploadingListLock());
 			const CClientRefList &uploadList = theApp->uploadqueue->GetUploadingList();
@@ -117,17 +114,7 @@ void *CUploadDiskIOThread::Entry()
 				CUpDownClient *client = it->GetClient();
 				if (client != NULL && client->GetSocket() != NULL && client->IsConnected()) {
 					clientIds.push_back(client->ECID());
-					if (thePrefs::IsVerifyUploadsEnabled()) {
-						activeFiles.insert(client->GetUploadFileID());
-					}
 				}
-			}
-		}
-		for (auto it = m_uploadHashsets.begin(); it != m_uploadHashsets.end();) {
-			if (activeFiles.count(it->first) == 0) {
-				it = m_uploadHashsets.erase(it);
-			} else {
-				++it;
 			}
 		}
 		for (uint32 clientId : clientIds) {
@@ -242,9 +229,6 @@ ReadRequest_Struct *CUploadDiskIOThread::PrepareRead(uint32 clientId)
 			return nullptr;
 		}
 
-		if (m_blockedFiles.count(CMD4Hash(currentblock->FileID)) != 0) {
-			throw wxString("Upload integrity check previously failed for this file");
-		}
 		CKnownFile *srcfile = theApp->sharedfiles->GetFileByID(CMD4Hash(currentblock->FileID));
 		if (srcfile == nullptr) {
 			throw wxString("requested file not found");
@@ -284,17 +268,6 @@ ReadRequest_Struct *CUploadDiskIOThread::PrepareRead(uint32 clientId)
 			req->pPartFile = srcPartFile;
 		} else {
 			req->path = srcfile->GetFilePath().JoinPaths(srcfile->GetFileName());
-			req->verifyUpload = thePrefs::IsVerifyUploadsEnabled();
-			if (req->verifyUpload) {
-				req->fileSize = srcfile->GetFileSize();
-				CAICHHashSet *hashes = srcfile->GetAICHHashset();
-				req->hasAichMasterHash = hashes &&
-							 hashes->GetStatus() == AICH_HASHSETCOMPLETE &&
-							 hashes->HasValidMasterHash();
-				if (req->hasAichMasterHash) {
-					req->aichMasterHash = hashes->GetMasterHash();
-				}
-			}
 		}
 		return req;
 	} catch (const wxString &DEBUG_ONLY(error)) {
@@ -340,13 +313,7 @@ CUploadDiskIOThread::ReadResult CUploadDiskIOThread::ReadBlock(ReadRequest_Struc
 		} else {
 			CFileAutoClose file;
 			if (file.Open(req->path, CFile::read)) {
-				if (req->verifyUpload) {
-					if (!ReadVerifiedFile(*req, file)) {
-						result = READ_FAILED;
-					}
-				} else {
-					req->area.ReadAt(file, req->uStartOffset, togo);
-				}
+				req->area.ReadAt(file, req->uStartOffset, togo);
 			} else {
 				result = READ_OPEN_FAILED;
 			}
@@ -369,46 +336,6 @@ CUploadDiskIOThread::ReadResult CUploadDiskIOThread::ReadBlock(ReadRequest_Struc
 		req->pPartFile = nullptr;
 	}
 	return result;
-}
-
-// Load expected hashes on the worker from the identity captured in PrepareRead.
-// No CKnownFile pointer or shared mutable AICH tree crosses the unlocked read.
-bool CUploadDiskIOThread::ReadVerifiedFile(ReadRequest_Struct &req, CFileAutoClose &file)
-{
-	const CMD4Hash id(req.ucMD4FileHash);
-	auto &snapshot = m_uploadHashsets[id];
-	bool available = req.hasAichMasterHash;
-	if (available && (!snapshot || snapshot->m_pHashTree.GetNDataSize() != req.fileSize ||
-				 snapshot->GetMasterHash() != req.aichMasterHash)) {
-		snapshot = std::make_unique<CAICHHashSet>(nullptr);
-		snapshot->SetFileSize(req.fileSize);
-		snapshot->SetMasterHash(req.aichMasterHash, AICH_HASHSETCOMPLETE);
-		available = req.fileSize <= EMBLOCKSIZE || snapshot->LoadHashSet(req.fileSize);
-		if (!available) {
-			snapshot.reset();
-		}
-	}
-	const auto result = available ? ReadVerifiedUpload(
-						snapshot->m_pHashTree,
-						req.fileSize,
-						req.uStartOffset,
-						req.uEndOffset,
-						[&file](void *buffer, uint64 offset, size_t length) {
-							file.ReadAt(buffer, offset, length);
-						},
-						req.verifiedData)
-				      : UploadIntegrityResult::MissingHash;
-	if (result == UploadIntegrityResult::Verified) {
-		return true;
-	}
-	m_blockedFiles.insert(id);
-	m_uploadHashsets.erase(id);
-	AddLogLineN(CFormat(_("Upload verification failed for '%s' (bytes %d-%d): %s. "
-			      "Uploads of this file are blocked until restart.")) %
-		    req.path % req.uStartOffset % req.uEndOffset %
-		    (result == UploadIntegrityResult::Mismatch ? _("AICH hash mismatch")
-							       : _("AICH verification unavailable")));
-	return false;
 }
 
 // Queues the block for sending and takes it off the client's queue. Returns false, and frees
@@ -509,8 +436,7 @@ void CUploadDiskIOThread::ReadCompletionRoutine(ReadRequest_Struct *req)
 		if (!bError) {
 			CClientTCPSocket *pSocket = client->GetSocket();
 
-			if (pSocket == nullptr || !client->IsConnected() ||
-				m_blockedFiles.count(CMD4Hash(req->ucMD4FileHash)) != 0) {
+			if (pSocket == NULL || !client->IsConnected()) {
 				AddDebugLogLineN(logClient,
 					"CUploadDiskIOThread::ReadCompletionRoutine: Client has no connected "
 					"socket");
@@ -542,10 +468,8 @@ void CUploadDiskIOThread::ReadCompletionRoutine(ReadRequest_Struct *req)
 				// the file ID.
 				CPacketList packetList;
 				uint32 data_rate = client->GetUploadDatarate();
-				const uint8_t *data =
-					req->verifyUpload ? req->verifiedData.data() : req->area.GetBuffer();
 				if (bUseCompression) {
-					UploadPacketBuilder::Packed(data,
+					UploadPacketBuilder::Packed(req->area.GetBuffer(),
 						req->uStartOffset,
 						req->uEndOffset,
 						packetList,
@@ -553,7 +477,7 @@ void CUploadDiskIOThread::ReadCompletionRoutine(ReadRequest_Struct *req)
 						data_rate,
 						&theStats::AddUpOverheadFileRequest);
 				} else {
-					UploadPacketBuilder::Standard(data,
+					UploadPacketBuilder::Standard(req->area.GetBuffer(),
 						req->uStartOffset,
 						req->uEndOffset,
 						packetList,

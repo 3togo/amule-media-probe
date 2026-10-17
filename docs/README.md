@@ -155,28 +155,32 @@ sources have it. Switching servers, joining Kad, or simply waiting often
 turns red into blue/black over hours.
 
 
-## Verify completed files before upload
+## Re-verify requested shared files
 
-To detect silent corruption while uploading completed shared files, stop aMule
-(or `amuled`), set `VerifyUploads=1` in the existing `[eMule]` section of
-`~/.aMule/amule.conf`, then restart. The default is `0`. This setting currently
-has no GUI or remote-control toggle.
+To re-verify shared files every N days, stop aMule (or `amuled`), set
+`SharedFileReverifyDays=N` in the existing `[eMule]` section of
+`~/.aMule/amule.conf`, then restart. The default is `0` (off); negative values
+also disable checks. This setting currently has no GUI or remote-control toggle.
+It replaces the experimental `VerifyUploads` setting, which is no longer used.
 
-When enabled, aMule checks every AICH leaf touched by an upload request and
-sends bytes from the verified copy. Requests that cut across leaf boundaries
-require extra reads; hashing also adds CPU work. Hash trees are loaded on demand
-and retained only for files with active upload slots.
+A valid block request for a completed file triggers a background Verify Local
+Data check when its last completed check is at least N days old, or it has never
+been checked. Files nobody requests and incomplete downloads are not checked.
+At most one automatic check is queued or running, at low priority so hashing
+newly shared files takes precedence. Requests arriving while verification is
+busy can trigger their check on a later request.
 
-A hash mismatch blocks further uploads of that file until restart and logs its
-path and requested byte range. Pending reads for other peers are discarded too.
-Missing or invalid AICH verification data also blocks the file, with a distinct
-log reason; this does not establish that its contents are corrupt. Original
-hashes and file contents are preserved. Investigate the logged file and restore
-it from a trusted copy if needed before restarting. Restarting alone does not
-repair corruption.
+Uploads continue while a check runs or if it cannot run. The existing verifier
+checks MD4 part hashes and, when available, AICH block hashes. Its result and date
+are saved in `known.met`; parts found corrupt are withheld from peers, including
+after restart. Healthy parts remain available. Original hashes and file contents
+are preserved; verification does not repair files. Already queued network
+packets cannot be recalled.
 
-This first version does not check incomplete downloads, repair parts, or scrub
-files that nobody requests. Previously queued network packets cannot be recalled.
+To avoid repeated disk reads and log messages on every request, an automatic
+attempt is retried no sooner than N days later during the same session, even
+if it could not finish. Restarting permits another attempt when no recent
+completed result exists. Manual Verify Local Data remains available at any time.
 
 
 ## Common file types

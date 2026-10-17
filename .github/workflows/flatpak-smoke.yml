@@ -1,6 +1,6 @@
 name: Flatpak GUI smoke
 
-# Run via Packaging's manual dispatch, with only=flatpak and flatpak_smoke=true.
+# Run on Packaging master pushes, or manually with only=flatpak and flatpak_smoke=true.
 # All three sessions install the same x86_64 bundle built by that workflow.
 on:
   workflow_call:
@@ -58,6 +58,8 @@ jobs:
           sudo apt-get install -y "${packages[@]}"
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
           flatpak install --user --noninteractive dist/*.flatpak
+      - name: Check drawing failure policy
+        run: python3 -m unittest discover -s packaging/linux/flatpak -p 'test_*.py' -v
       - name: Exercise the sandboxed GUI
         env:
           SESSION: ${{ matrix.session }}
@@ -80,6 +82,7 @@ jobs:
             ${{ runner.temp }}/flatpak-smoke/*.ini
             ${{ runner.temp }}/flatpak-smoke/*.json
           if-no-files-found: warn
+          retention-days: 7
       - name: Record coverage
         if: always()
         env:

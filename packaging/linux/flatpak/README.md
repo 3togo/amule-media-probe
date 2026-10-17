@@ -52,9 +52,12 @@ go: `packaging/linux/build.sh all`.
 
 ## Automated GUI smoke tests
 
-Manually run the **Packaging** workflow on the branch to test, set `only` to
-`flatpak`, and enable `flatpak_smoke`. This builds one x86_64 bundle and installs
-that same artifact in three isolated sessions on Ubuntu 26.04:
+GUI smoke tests run automatically on every master push that triggers the
+**Packaging** workflow. Releases do not run them. For other branches, manually
+dispatch **Packaging**, set `only` to `flatpak`, and enable `flatpak_smoke`.
+Manual smoke builds produce one x86_64 bundle; automatic packaging keeps both
+architectures. The tests install the same x86_64 artifact in three isolated
+sessions on Ubuntu 26.04:
 
 - X11 with Xvfb/Openbox, with no Wayland display, exercising `fallback-x11`.
 - GNOME Shell/Mutter headless Wayland, with Xwayland disabled.
@@ -74,7 +77,9 @@ resizes the display/window, and requests a clean exit. GNOME uses a virtual
 keyboard; X11 and KWin's nested display use XTest input.
 
 Download `flatpak-smoke-*` artifacts to review screenshots, application and
-compositor logs, package versions, and the permissions actually tested. A pass
+compositor logs, package versions, and the permissions actually tested. These
+artifacts are kept for 7 days. Any `drawing failure` line in `amule.log` fails
+the job; unrelated `Gtk-WARNING` lines do not fail it. A pass
 requires a nonblank display and opening Preferences through keyboard input;
 screenshots still need human review for missing or incorrectly drawn widgets.
 These jobs use software rendering and do not establish scrolling smoothness or

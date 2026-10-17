@@ -20,9 +20,6 @@ from PIL import Image, ImageStat
 
 
 APP = "org.amule.aMule"
-SESSION, output_dir = sys.argv[1:]
-OUT = Path(output_dir).resolve()
-OUT.mkdir(parents=True, exist_ok=True)
 PROCESSES = []
 LOGS = []
 
@@ -133,6 +130,10 @@ def capture(name):
 
 
 def main():
+    global SESSION, OUT
+    SESSION, output_dir = sys.argv[1:]
+    OUT = Path(output_dir).resolve()
+    OUT.mkdir(parents=True, exist_ok=True)
     assert SESSION in {"x11", "gnome-wayland", "kde-wayland"}
     host = os.environ.copy()
     runtime = OUT / "runtime"
@@ -264,33 +265,47 @@ def main():
         wait_for("resized X11 window/display", lambda:
                  {"WIDTH=1024", "HEIGHT=740"}.issubset(set(
                      run("xdotool", "getwindowgeometry", "--shell", window).splitlines())))
+    if SESSION == "gnome-wayland":
+        wait_for("resized GNOME window", lambda: json.loads(shell_eval(
+            "{ const w = global.get_window_actors().find(a => "
+            "(a.meta_window.get_title() || '').includes('aMule')).meta_window; "
+            "const r = w.get_frame_rect(); [r.width, r.height]; }")) == [1024, 740])
     time.sleep(1)
     capture("05-resized")
     key("ctrl+q")
     assert app.wait(timeout=30) == 0, "aMule did not shut down cleanly"
     assert (config / "amule.conf").is_file()
+    check_drawing_failures(OUT / "amule.log")
     (OUT / "result.txt").write_text(f"PASS: {SESSION}; no DRI; native window; keyboard navigation; "
-                                   "Preferences; resize; screenshots; clean shutdown.\n"
+                                   "Preferences; resize; screenshots; clean shutdown; no drawing failures.\n"
                                    "Visual correctness and hardware performance require review.\n")
     print((OUT / "result.txt").read_text(), flush=True)
 
 
-try:
-    main()
-except Exception:
+def check_drawing_failures(log_path):
+    failures = [line for line in log_path.read_text(errors="replace").splitlines()
+                if "drawing failure" in line]
+    if failures:
+        raise RuntimeError("aMule drawing failure:\n" + "\n".join(failures))
+
+
+if __name__ == "__main__":
     try:
-        capture("failure")
-    except Exception as error:
-        print(f"Could not capture failure screenshot: {error}", flush=True)
-    raise
-finally:
-    for process in reversed(PROCESSES):
-        if process.poll() is None:
-            process.terminate()
-            try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(timeout=5)
-    for log in LOGS:
-        log.close()
+        main()
+    except Exception:
+        try:
+            capture("failure")
+        except Exception as error:
+            print(f"Could not capture failure screenshot: {error}", flush=True)
+        raise
+    finally:
+        for process in reversed(PROCESSES):
+            if process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=5)
+        for log in LOGS:
+            log.close()

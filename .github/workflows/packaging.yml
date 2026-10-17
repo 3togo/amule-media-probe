@@ -281,7 +281,8 @@ jobs:
     if: >-
       !cancelled() &&
       ((github.event_name == 'push' && github.ref == 'refs/heads/master') ||
-       (github.event_name == 'workflow_dispatch' && inputs.flatpak_smoke)) &&
+       (github.event_name == 'workflow_dispatch' && inputs.flatpak_smoke &&
+        (inputs.only == '' || contains(inputs.only, 'flatpak')))) &&
       (needs.flatpak.result == 'success' ||
        (needs.flatpak.result == 'skipped' && inputs.flatpak_smoke_run_id != ''))
     uses: ./.github/workflows/flatpak-smoke.yml

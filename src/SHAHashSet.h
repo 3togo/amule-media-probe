@@ -308,7 +308,9 @@ public:
 	bool HasValidMasterHash() { return m_pHashTree.m_bHashValid; }
 
 	bool SaveHashSet();
-	bool LoadHashSet(); // only call directly when debugging
+	bool LoadHashSet();
+	// Load a worker-owned snapshot without retaining a CKnownFile pointer.
+	bool LoadHashSet(uint64 fileSize);
 
 	static CAICHHashAlgo *GetNewHashAlgo();
 	static void ClientAICHRequestFailed(CUpDownClient *pClient);

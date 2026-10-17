@@ -847,11 +847,17 @@ bool CAICHHashSet::SaveHashSet()
 
 bool CAICHHashSet::LoadHashSet()
 {
+	wxCHECK(m_pOwner != nullptr, false);
+	return LoadHashSet(m_pOwner->GetFileSize());
+}
+
+bool CAICHHashSet::LoadHashSet(uint64 fileSize)
+{
 	if (m_eStatus != AICH_HASHSETCOMPLETE) {
 		wxFAIL;
 		return false;
 	}
-	if (!m_pHashTree.m_bHashValid || m_pHashTree.m_nDataSize != m_pOwner->GetFileSize() ||
+	if (!m_pHashTree.m_bHashValid || m_pHashTree.m_nDataSize != fileSize ||
 		m_pHashTree.m_nDataSize == 0) {
 		wxFAIL;
 		return false;

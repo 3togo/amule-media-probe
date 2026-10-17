@@ -2616,6 +2616,7 @@ endif()
 
 # Exercise production consensus with explicit, fail-fast application stubs.
 add_executable (AICHSearchResultTest
+	UploadIntegrityTest.cpp
 	AICHSearchResultTest.cpp
 	AICHSearchResultStubs.cpp
 	${CMAKE_SOURCE_DIR}/src/KadAICHVotes.cpp

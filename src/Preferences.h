@@ -244,6 +244,8 @@ public:
 	static uint32 GetMaxUpload() { return s_maxupload; }
 	static uint32 GetSlotAllocation() { return s_slotallocation; }
 	static bool IsICHEnabled() { return s_ICH; }
+	// Startup-only, config-file preference; read by the upload worker.
+	static bool IsVerifyUploadsEnabled() { return s_verifyUploads; }
 	static void SetICHEnabled(bool val) { s_ICH = val; }
 	static bool IsTrustingEveryHash() { return s_AICHTrustEveryHash; }
 	static void SetTrustingEveryHash(bool val) { s_AICHTrustEveryHash = val; }
@@ -966,6 +968,7 @@ protected:
 	static CPath s_incomingdir;
 	static CPath s_tempdir;
 	static bool s_ICH;
+	static bool s_verifyUploads;
 	static bool s_AICHTrustEveryHash;
 
 	////////////// GUI

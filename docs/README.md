@@ -155,6 +155,30 @@ sources have it. Switching servers, joining Kad, or simply waiting often
 turns red into blue/black over hours.
 
 
+## Verify completed files before upload
+
+To detect silent corruption while uploading completed shared files, stop aMule
+(or `amuled`), set `VerifyUploads=1` in the existing `[eMule]` section of
+`~/.aMule/amule.conf`, then restart. The default is `0`. This setting currently
+has no GUI or remote-control toggle.
+
+When enabled, aMule checks every AICH leaf touched by an upload request and
+sends bytes from the verified copy. Requests that cut across leaf boundaries
+require extra reads; hashing also adds CPU work. Hash trees are loaded on demand
+and retained only for files with active upload slots.
+
+A hash mismatch blocks further uploads of that file until restart and logs its
+path and requested byte range. Pending reads for other peers are discarded too.
+Missing or invalid AICH verification data also blocks the file, with a distinct
+log reason; this does not establish that its contents are corrupt. Original
+hashes and file contents are preserved. Investigate the logged file and restore
+it from a trusted copy if needed before restarting. Restarting alone does not
+repair corruption.
+
+This first version does not check incomplete downloads, repair parts, or scrub
+files that nobody requests. Previously queued network packets cannot be recalled.
+
+
 ## Common file types
 
 | Group     | Extensions |

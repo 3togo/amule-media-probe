@@ -21,7 +21,8 @@ class SummaryTest(unittest.TestCase):
         rows += 'read,10000000000,50000000,0,0,1,0\n'
         rows += 'loop,10000000000,6000000000,0,0,0,0\nend,20000000000,0,0,0,0,0\n'
         result = summarize(io.StringIO(HEADER + rows))
-        self.assertEqual([result[k] for k in ('p50_ms', 'p95_ms', 'p99_ms')], [50, 95, 99])
+        self.assertEqual([result[k] for k in ('p50_ms', 'p90_ms', 'p95_ms', 'p99_ms')],
+                         [50, 90, 95, 99])
         self.assertEqual(result['reads_per_second'], 5)
         self.assertEqual(result['bytes_per_second'], 5120)
         self.assertEqual(result['failed_or_deferred_reads'], 1)

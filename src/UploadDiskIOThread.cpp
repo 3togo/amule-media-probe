@@ -327,8 +327,9 @@ CUploadDiskIOThread::ReadResult CUploadDiskIOThread::ReadBlock(
 			}
 		} else {
 			CFileAutoClose file;
+			// Include open latency: cached-handle comparisons must measure the I/O it avoids.
+			readTimer.Start();
 			if (file.Open(req->path, CFile::read)) {
-				readTimer.Start();
 				req->area.ReadAt(file, req->uStartOffset, togo);
 			} else {
 				result = READ_OPEN_FAILED;

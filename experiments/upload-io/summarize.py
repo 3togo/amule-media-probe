@@ -89,6 +89,7 @@ def summarize(stream):
         'failed_or_deferred_reads': failed,
         'wall_seconds': seconds,
         'p50_ms': durations[math.ceil(len(durations) * .50) - 1] / 1e6,
+        'p90_ms': durations[math.ceil(len(durations) * .90) - 1] / 1e6,
         'p95_ms': durations[math.ceil(len(durations) * .95) - 1] / 1e6,
         'p99_ms': durations[math.ceil(len(durations) * .99) - 1] / 1e6,
         'reads_per_second': len(durations) / seconds,

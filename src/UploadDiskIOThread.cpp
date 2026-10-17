@@ -380,7 +380,7 @@ bool CUploadDiskIOThread::ReadVerifiedFile(ReadRequest_Struct &req, CFileAutoClo
 	bool available = req.hasAichMasterHash;
 	if (available && (!snapshot || snapshot->m_pHashTree.GetNDataSize() != req.fileSize ||
 				 snapshot->GetMasterHash() != req.aichMasterHash)) {
-		snapshot.reset(new CAICHHashSet(nullptr));
+		snapshot = std::make_unique<CAICHHashSet>(nullptr);
 		snapshot->SetFileSize(req.fileSize);
 		snapshot->SetMasterHash(req.aichMasterHash, AICH_HASHSETCOMPLETE);
 		available = req.fileSize <= EMBLOCKSIZE || snapshot->LoadHashSet(req.fileSize);
@@ -509,7 +509,7 @@ void CUploadDiskIOThread::ReadCompletionRoutine(ReadRequest_Struct *req)
 		if (!bError) {
 			CClientTCPSocket *pSocket = client->GetSocket();
 
-			if (pSocket == NULL || !client->IsConnected() ||
+			if (pSocket == nullptr || !client->IsConnected() ||
 				m_blockedFiles.count(CMD4Hash(req->ucMD4FileHash)) != 0) {
 				AddDebugLogLineN(logClient,
 					"CUploadDiskIOThread::ReadCompletionRoutine: Client has no connected "

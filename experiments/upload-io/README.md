@@ -2,8 +2,11 @@
 
 This is temporary measurement instrumentation, before any prefetch implementation.
 No CSV is opened and no per-read clock is sampled unless `AMULE_UPLOAD_IO_PROFILE`
-is set to a nonempty output path. The file is overwritten at startup. An output
-open/write failure logs a message and disables profiling without stopping uploads.
+is set to a nonempty output path. The file is overwritten at startup. An
+allocation, sample-limit or output failure logs one message and disables
+profiling without stopping uploads. Such captures lack a completion marker and
+are rejected by the summary tool.
+CSV numbers use the classic locale so regional grouping cannot corrupt fields.
 Only the upload disk thread writes the CSV. No peer identifiers or file paths are recorded.
 
 ## First screening run
@@ -69,14 +72,23 @@ serialization and the condition-variable wait. Thus idle sleep and CSV writes
 are excluded from active time; mutex waits, packet building and compression are
 included. On current upstream, disk reads run without the upload-list and
 block-list locks; part-file reads still acquire the part-file handle mutex.
-Successful latency percentiles use the nearest-rank definition. Rates
-use wall time since profiler startup through the last completed loop, including
+Successful latency percentiles use the nearest-rank definition. Read and byte
+rates count successful reads; failed/deferred attempts are reported separately. Rates
+use wall time from profiler startup through explicit capture completion, including
 sleep and CSV writes. Read rows are buffered until that loop ends and share its
-end timestamp. The CSV is flushed once per loop; stop normally before analyzing.
+end timestamp. The CSV is flushed once per loop. Normal worker shutdown writes an `end` record
+and flushes it; stop normally before analyzing. A missing footer, incomplete row,
+inconsistent timestamp, impossible duration or mixed mmap mode invalidates the
+capture instead of producing a potentially misleading baseline. Captures from the
+original draft, which lack an `end` record, must be collected again.
 
 Instrumentation still has clock, sample-storage and flush overhead. It is a
 screening tool, not a zero-overhead benchmark. CSV grows with the number of reads;
-watch tmpfs/container memory use and copy results out after each run.
+watch tmpfs/container memory use and copy results out after each run. The worker
+preallocates space for at most 4096 read samples per loop (about 100 KiB), performs
+no allocations in read timers, and disables profiling if that limit is exceeded.
+An overflow invalidates the whole capture, rather than dropping samples and
+biasing the percentiles. Reduce the workload per loop before repeating that run.
 
 ## Decision and subsequent validation
 
@@ -103,3 +115,7 @@ Check the instrumentation and summary tool without a running aMule:
 ```sh
 python3 experiments/upload-io/test_profile.py
 ```
+
+With `BUILD_TESTING=ON`, native GNU/Clang builds also register this regression
+suite as `UploadIOProfileTest` in CTest. Cross-compiled captures can be analyzed
+on the host; the compiled collector harness requires a native executable.

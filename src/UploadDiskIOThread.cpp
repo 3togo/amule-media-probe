@@ -103,9 +103,6 @@ void *CUploadDiskIOThread::Entry()
 {
 	m_bRun = true;
 	UploadIOProfile profile;
-	if (profile.Failed()) {
-		AddLogLineN("Upload I/O profiling disabled: cannot open output file");
-	}
 
 	while (m_bRun) // eMule ref: line 88
 	{
@@ -142,7 +139,7 @@ void *CUploadDiskIOThread::Entry()
 		}
 
 		if (!profile.EndLoop()) {
-			AddLogLineN("Upload I/O profiling disabled: cannot write output file");
+			AddLogLineN("Upload I/O profiling disabled: output or sample buffer failure");
 		}
 
 		// wxCondition::WaitTimeout(500ms) in place of eMule's WaitForMultipleObjects.
@@ -157,6 +154,10 @@ void *CUploadDiskIOThread::Entry()
 			m_bNewBlocksPending = false;
 			m_bSocketNeedsPending = false;
 		}
+	}
+
+	if (!profile.Close()) {
+		AddLogLineN("Upload I/O profiling disabled: cannot finalize capture");
 	}
 
 	// Cleanup. No overlapped I/O to cancel, so just clear the open files list.

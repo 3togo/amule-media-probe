@@ -1,43 +1,88 @@
 #!/usr/bin/env python3
-"""Summarize the temporary AMULE_UPLOAD_IO_PROFILE CSV baseline."""
+"""Summarize a complete AMULE_UPLOAD_IO_PROFILE CSV capture."""
 import argparse
 import csv
 import math
 
+FIELDS = ['kind', 'elapsed_ns', 'duration_ns', 'bytes', 'success', 'part', 'mmap']
+
+
+def complete_lines(stream):
+    for line in stream:
+        if not line.endswith('\n'):
+            raise ValueError('truncated CSV line; capture is incomplete')
+        yield line
+
 
 def summarize(stream):
-    durations = []
-    read_ns = active_ns = byte_count = failed = loops = elapsed_ns = 0
-    modes = set()
-    pending_reads = 0
-    for row in csv.DictReader(stream):
-        duration = int(row['duration_ns'])
-        if duration < 0:
-            raise ValueError('negative duration')
-        if row['kind'] == 'loop':
-            active_ns += duration
-            elapsed_ns = max(elapsed_ns, int(row['elapsed_ns']))
-            loops += 1
-            pending_reads = 0
-        elif row['kind'] == 'read':
-            pending_reads += 1
-            modes.add(int(row['mmap']))
-            read_ns += duration
-            if int(row['success']):
-                durations.append(duration)
-                byte_count += int(row['bytes'])
+    reader = csv.reader(complete_lines(stream), strict=True)
+    try:
+        if next(reader, None) != FIELDS:
+            raise ValueError('unexpected CSV header')
+        durations = []
+        read_ns = active_ns = byte_count = failed = loops = previous_loop = 0
+        pending_time = pending_elapsed = 0
+        modes = set()
+        ended = False
+        wall_ns = 0
+        for row in reader:
+            if ended:
+                raise ValueError('records after completion marker')
+            if len(row) != len(FIELDS):
+                raise ValueError('incorrect CSV field count')
+            kind = row[0]
+            elapsed, duration, size, success, part, mmap = map(int, row[1:])
+            if not (0 <= elapsed <= 2**63 - 1 and 0 <= duration <= 2**63 - 1
+                    and 0 <= size <= 2**64 - 1):
+                raise ValueError('time or byte count outside collector integer range')
+            if success not in (0, 1) or part not in (0, 1) or mmap not in (0, 1):
+                raise ValueError('invalid boolean flag')
+            if kind == 'read':
+                if elapsed <= previous_loop or (pending_elapsed and elapsed != pending_elapsed):
+                    raise ValueError('read timestamp does not match its loop')
+                if duration > elapsed - previous_loop:
+                    raise ValueError('read duration exceeds wall interval')
+                pending_elapsed = elapsed
+                pending_time += duration
+                modes.add(mmap)
+                if success:
+                    durations.append(duration)
+                    byte_count += size
+                else:
+                    failed += 1
+            elif kind == 'loop':
+                if size or success or part or mmap:
+                    raise ValueError('nonzero loop placeholder')
+                if elapsed <= previous_loop or duration > elapsed - previous_loop:
+                    raise ValueError('invalid loop wall interval')
+                if pending_elapsed and pending_elapsed != elapsed:
+                    raise ValueError('read timestamp does not match its loop')
+                if pending_time > duration:
+                    raise ValueError('read time exceeds active loop time')
+                active_ns += duration
+                read_ns += pending_time
+                pending_time = pending_elapsed = 0
+                previous_loop = elapsed
+                loops += 1
+            elif kind == 'end':
+                if duration or size or success or part or mmap:
+                    raise ValueError('nonzero completion placeholder')
+                if pending_elapsed or elapsed < previous_loop:
+                    raise ValueError('incomplete final loop or invalid completion timestamp')
+                wall_ns = elapsed
+                ended = True
             else:
-                failed += 1
-        else:
-            raise ValueError('unknown record kind')
-    if modes - {0, 1} or len(modes) > 1:
+                raise ValueError('unknown record kind')
+    except csv.Error as error:
+        raise ValueError(f'invalid CSV: {error}') from error
+    if not ended:
+        raise ValueError('missing completion marker; capture failed or aMule did not stop normally')
+    if len(modes) > 1:
         raise ValueError('keep mmap mode fixed throughout each baseline run')
-    if pending_reads:
-        raise ValueError('incomplete final loop; stop aMule normally before analyzing')
-    if not loops or not elapsed_ns or not durations:
-        raise ValueError('no completed loops with successful reads; collect an upload workload first')
+    if not loops or not wall_ns or not durations:
+        raise ValueError('no successful reads in completed loops; collect an upload workload first')
     durations.sort()
-    seconds = elapsed_ns / 1e9
+    seconds = wall_ns / 1e9
     return {
         'mmap_enabled': bool(next(iter(modes))),
         'successful_reads': len(durations),
@@ -59,7 +104,7 @@ def main():
     try:
         with open(args.csv_path, newline='') as stream:
             result = summarize(stream)
-    except (OSError, ValueError, KeyError) as error:
+    except (OSError, ValueError) as error:
         parser.exit(1, f'{error}\n')
     for key, value in result.items():
         print(f'{key}: {value:.3f}' if isinstance(value, float) else f'{key}: {value}')

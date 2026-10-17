@@ -31,6 +31,9 @@
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
+#include <optional>
+#include <locale>
+#include <utility>
 #include <vector>
 
 class UploadIOProfile
@@ -46,50 +49,103 @@ class UploadIOProfile
 	};
 
 public:
-	UploadIOProfile()
+	// At most ~100 KiB, allocated once while opting in, never in a read destructor.
+	static constexpr size_t MaxSamplesPerLoop = 4096;
+
+	UploadIOProfile() noexcept
 	{
 		const char *path = std::getenv("AMULE_UPLOAD_IO_PROFILE");
-		if (path && *path) {
-			m_output.open(path, std::ios::out | std::ios::trunc);
-			if (!m_output) {
+		if (!path || !*path) {
+			return;
+		}
+		try {
+			m_samples.reserve(MaxSamplesPerLoop);
+			m_output.emplace();
+			m_output->imbue(std::locale::classic());
+			m_output->open(path, std::ios::out | std::ios::trunc);
+			*m_output << "kind,elapsed_ns,duration_ns,bytes,success,part,mmap\n";
+			m_output->flush();
+			if (!*m_output) {
+				Fail();
 				return;
 			}
-			m_output << "kind,elapsed_ns,duration_ns,bytes,success,part,mmap\n";
+			m_start = Clock::now();
 			m_enabled = true;
+		} catch (...) {
+			// Optional diagnostics must not kill the upload worker on allocation/I/O failure.
+			Fail();
 		}
 	}
+
+	UploadIOProfile(const UploadIOProfile &) = delete;
+	UploadIOProfile &operator=(const UploadIOProfile &) = delete;
 
 	bool Enabled() const { return m_enabled; }
-	bool Failed() const { return m_output.fail(); }
+	bool Failed() const { return m_failed; }
 
-	void BeginLoop()
+	void BeginLoop() noexcept
 	{
+		if (m_enabled && m_loopStarted) {
+			Fail();
+		}
 		if (m_enabled) {
 			m_loopStart = Clock::now();
+			m_loopStarted = true;
 		}
 	}
 
-	bool EndLoop()
+	bool EndLoop() noexcept
 	{
-		if (!m_enabled) {
-			return true;
+		if (m_enabled && !m_loopStarted) {
+			Fail();
 		}
-		const auto end = Clock::now();
-		const auto elapsed = Nanoseconds(end - m_start);
-		// Serialization, flushing and the condition-variable sleep are outside active time.
-		for (const auto &sample : m_samples) {
-			m_output << "read," << elapsed << ',' << sample.duration << ',' << sample.bytes << ','
-				 << sample.success << ',' << sample.part << ',' << sample.mmap << '\n';
-		}
-		m_output << "loop," << elapsed << ',' << Nanoseconds(end - m_loopStart) << ",0,0,0,0\n";
-		m_output.flush();
-		if (!m_output) {
-			m_enabled = false;
+		if (m_enabled) {
+			const auto end = Clock::now();
+			try {
+				// Serialization, flushing and condition-variable sleep are outside active
+				// time.
+				for (const auto &sample : m_samples) {
+					*m_output << "read," << Nanoseconds(end - m_start) << ','
+						  << sample.duration << ',' << sample.bytes << ','
+						  << sample.success << ',' << sample.part << ','
+						  << sample.mmap << '\n';
+				}
+				*m_output << "loop," << Nanoseconds(end - m_start) << ','
+					  << Nanoseconds(end - m_loopStart) << ",0,0,0,0\n";
+				m_output->flush();
+				if (!*m_output) {
+					Fail();
+				}
+			} catch (...) {
+				Fail();
+			}
 			m_samples.clear();
-			return false;
+			m_loopStarted = false;
 		}
-		m_samples.clear();
-		return true;
+		return !std::exchange(m_failurePending, false);
+	}
+
+	// Called explicitly after the worker's final loop. Failure/crash captures lack this footer.
+	bool Close() noexcept
+	{
+		if (m_enabled) {
+			try {
+				if (m_loopStarted) {
+					Fail();
+				} else {
+					*m_output << "end," << Nanoseconds(Clock::now() - m_start)
+						  << ",0,0,0,0,0\n";
+					m_output->flush();
+					if (!*m_output) {
+						Fail();
+					}
+				}
+			} catch (...) {
+				Fail();
+			}
+			m_enabled = false;
+		}
+		return !std::exchange(m_failurePending, false);
 	}
 
 	class Read
@@ -103,15 +159,18 @@ public:
 		Read(const Read &) = delete;
 		Read &operator=(const Read &) = delete;
 
-		void Start()
+		void Start() noexcept
 		{
+			if (m_profile.Enabled() && !m_profile.m_loopStarted) {
+				m_profile.Fail();
+			}
 			if (m_profile.Enabled()) {
 				m_started = true;
 				m_start = Clock::now();
 			}
 		}
 
-		void Finish()
+		void Finish() noexcept
 		{
 			if (m_started) {
 				m_sample.duration = Nanoseconds(Clock::now() - m_start);
@@ -119,13 +178,21 @@ public:
 			}
 		}
 
-		~Read()
+		~Read() noexcept
 		{
-			if (m_started) {
+			if (m_started && m_profile.Enabled()) {
 				if (!m_sample.success) {
 					m_sample.duration = Nanoseconds(Clock::now() - m_start);
 				}
-				m_profile.m_samples.push_back(m_sample);
+				if (m_profile.m_samples.size() == MaxSamplesPerLoop) {
+					// Do not silently drop slow samples and bias the reported
+					// percentiles.
+					m_profile.Fail();
+				} else {
+					// reserve() has already allocated the whole bound; Sample cannot
+					// throw.
+					m_profile.m_samples.push_back(m_sample);
+				}
 			}
 		}
 
@@ -137,15 +204,26 @@ public:
 	};
 
 private:
+	void Fail() noexcept
+	{
+		m_enabled = false;
+		m_failed = true;
+		m_failurePending = true;
+		m_samples.clear();
+	}
+
 	static int64_t Nanoseconds(Clock::duration duration)
 	{
 		return std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
 	}
 
 	bool m_enabled = false;
-	std::ofstream m_output;
+	bool m_failed = false;
+	bool m_failurePending = false;
+	bool m_loopStarted = false;
+	std::optional<std::ofstream> m_output;
 	std::vector<Sample> m_samples;
-	Clock::time_point m_start = Clock::now();
+	Clock::time_point m_start;
 	Clock::time_point m_loopStart;
 };
 

@@ -9029,6 +9029,19 @@ msgstr ""
 
 #: src/UploadDiskIOThread.cpp
 #, c-format
+msgid "Upload verification failed for '%s' (bytes %d-%d): %s. Uploads of this file are blocked until restart."
+msgstr ""
+
+#: src/UploadDiskIOThread.cpp
+msgid "AICH hash mismatch"
+msgstr ""
+
+#: src/UploadDiskIOThread.cpp
+msgid "AICH verification unavailable"
+msgstr ""
+
+#: src/UploadDiskIOThread.cpp
+#, c-format
 msgid "Failed to open file (%s), removing from list of shared files."
 msgstr ""
 

@@ -10,6 +10,9 @@ is set to a nonempty output path. The file is overwritten at startup. An
 allocation, sample-limit or output failure logs one message and disables
 profiling without stopping uploads. Such captures lack a completion marker and
 are rejected by the summary tool.
+Captures start with `amule-upload-io,2` followed by the CSV column header.
+Version 2 measures complete-file open latency; the analyzer rejects unversioned
+and unknown-version captures so older timing semantics cannot enter an A/B result.
 CSV numbers use the classic locale so regional grouping cannot corrupt fields.
 Only the upload disk thread writes the CSV. No peer identifiers or file paths are recorded.
 
@@ -89,6 +92,9 @@ capture instead of producing a potentially misleading baseline. Captures from th
 original draft, which lack an `end` record, must be collected again. Captures
 from before the open-timer correction also need to be recollected for A/B
 comparisons: their durations omit open latency and cannot be corrected afterward.
+All unversioned captures, including ones with completion markers, are rejected.
+The analyzer also rejects non-decimal numeric fields and loops exceeding the
+collector's 4096-sample bound.
 
 Instrumentation still has clock, sample-storage and flush overhead. It is a
 screening tool, not a zero-overhead benchmark. CSV grows with the number of reads;

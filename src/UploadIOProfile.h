@@ -63,7 +63,10 @@ public:
 			m_output.emplace();
 			m_output->imbue(std::locale::classic());
 			m_output->open(path, std::ios::out | std::ios::trunc);
-			*m_output << "kind,elapsed_ns,duration_ns,bytes,success,part,mmap\n";
+			// Version 2 includes complete-file open latency. Earlier captures cannot be
+			// compared with it, even when they have a valid completion marker.
+			*m_output << "amule-upload-io,2\n"
+				     "kind,elapsed_ns,duration_ns,bytes,success,part,mmap\n";
 			m_output->flush();
 			if (!*m_output) {
 				Fail();

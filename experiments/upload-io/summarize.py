@@ -5,6 +5,8 @@ import csv
 import math
 
 FIELDS = ['kind', 'elapsed_ns', 'duration_ns', 'bytes', 'success', 'part', 'mmap']
+FORMAT = ['amule-upload-io', '2']
+MAX_SAMPLES_PER_LOOP = 4096
 
 
 def complete_lines(stream):
@@ -17,11 +19,14 @@ def complete_lines(stream):
 def summarize(stream):
     reader = csv.reader(complete_lines(stream), strict=True)
     try:
+        if next(reader, None) != FORMAT:
+            raise ValueError('unsupported capture format version; recollect with the current profiler')
         if next(reader, None) != FIELDS:
             raise ValueError('unexpected CSV header')
         durations = []
         read_ns = active_ns = byte_count = failed = loops = previous_loop = 0
         pending_time = pending_elapsed = 0
+        pending_reads = 0
         modes = set()
         ended = False
         wall_ns = 0
@@ -31,6 +36,12 @@ def summarize(stream):
             if len(row) != len(FIELDS):
                 raise ValueError('incorrect CSV field count')
             kind = row[0]
+            # int() also accepts whitespace, signs, underscores and Unicode digits,
+            # none of which the collector emits. Reject damaged fields rather than
+            # silently converting them into plausible measurements.
+            if any(not field or not field.isascii() or not field.isdecimal()
+                   for field in row[1:]):
+                raise ValueError('invalid unsigned decimal field')
             elapsed, duration, size, success, part, mmap = map(int, row[1:])
             if not (0 <= elapsed <= 2**63 - 1 and 0 <= duration <= 2**63 - 1
                     and 0 <= size <= 2**64 - 1):
@@ -38,6 +49,9 @@ def summarize(stream):
             if success not in (0, 1) or part not in (0, 1) or mmap not in (0, 1):
                 raise ValueError('invalid boolean flag')
             if kind == 'read':
+                pending_reads += 1
+                if pending_reads > MAX_SAMPLES_PER_LOOP:
+                    raise ValueError('read sample limit exceeded in one loop')
                 if elapsed <= previous_loop or (pending_elapsed and elapsed != pending_elapsed):
                     raise ValueError('read timestamp does not match its loop')
                 if duration > elapsed - previous_loop:
@@ -62,6 +76,7 @@ def summarize(stream):
                 active_ns += duration
                 read_ns += pending_time
                 pending_time = pending_elapsed = 0
+                pending_reads = 0
                 previous_loop = elapsed
                 loops += 1
             elif kind == 'end':

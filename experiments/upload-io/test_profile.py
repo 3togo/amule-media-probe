@@ -11,7 +11,8 @@ import unittest
 from summarize import summarize
 
 ROOT = Path(__file__).resolve().parents[2]
-HEADER = 'kind,elapsed_ns,duration_ns,bytes,success,part,mmap\n'
+COLUMNS = 'kind,elapsed_ns,duration_ns,bytes,success,part,mmap\n'
+HEADER = 'amule-upload-io,2\n' + COLUMNS
 VALID = 'read,10,2,42,1,0,0\nloop,10,3,0,0,0,0\nend,12,0,0,0,0,0\n'
 
 
@@ -66,6 +67,24 @@ class SummaryTest(unittest.TestCase):
         for data in corrupt:
             with self.subTest(data=data), self.assertRaises(ValueError):
                 summarize(io.StringIO(data))
+
+    def test_reject_old_timing_semantics(self):
+        with self.assertRaisesRegex(ValueError, 'format version'):
+            summarize(io.StringIO(COLUMNS + VALID))
+        with self.assertRaisesRegex(ValueError, 'format version'):
+            summarize(io.StringIO(HEADER.replace('amule-upload-io,2', 'amule-upload-io,1') + VALID))
+
+    def test_reject_non_collector_numbers_and_sample_counts(self):
+        for field in ('+10', '1_0', ' 10', '10 ', '١٠'):
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                summarize(io.StringIO(HEADER + VALID.replace('read,10,', f'read,{field},')))
+        rows = 'read,10,0,42,1,0,0\n' * 4097
+        with self.assertRaisesRegex(ValueError, 'sample limit'):
+            summarize(io.StringIO(HEADER + rows + 'loop,10,3,0,0,0,0\nend,12,0,0,0,0,0\n'))
+        # The limit applies to each loop, not to the whole capture.
+        rows = 'read,10,0,42,1,0,0\n' * 4096 + 'loop,10,3,0,0,0,0\n'
+        rows += 'read,20,0,42,1,0,0\nloop,20,3,0,0,0,0\nend,22,0,0,0,0,0\n'
+        self.assertEqual(summarize(io.StringIO(HEADER + rows))['successful_reads'], 4097)
 
     def test_cli_rejects_corruption_without_traceback(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -188,6 +207,7 @@ class CollectorTest(unittest.TestCase):
         code, path = self.run_collector()
         self.assertEqual(code, 0)
         with path.open() as stream:
+            self.assertEqual(stream.readline(), 'amule-upload-io,2\n')
             rows = list(csv.DictReader(stream))
         self.assertEqual([r['kind'] for r in rows], ['read', 'read', 'loop', 'end'])
         self.assertEqual([r['success'] for r in rows[:2]], ['1', '0'])
